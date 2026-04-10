@@ -20,10 +20,7 @@ import {
 } from "./services/api";
 
 const tokenStorageKey = "codemate_token";
-const socketUrl =
-  import.meta.env.VITE_SOCKET_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5000";
+const socketUrl = "http://127.0.0.1:5000";
 
 const emptyProfileDraft = {
   headline: "",
@@ -277,9 +274,10 @@ function App() {
     console.log("[socket] connecting", socketUrl);
 
     const socket = io(socketUrl, {
-      auth: {
-        token: authToken
-      }
+        auth: {
+        token: token
+      },
+      transports: ["websocket"]
     });
 
     socketRef.current = socket;
