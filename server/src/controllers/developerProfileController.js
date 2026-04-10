@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import DeveloperProfile from "../models/DeveloperProfile.js";
 
 const populateUser = "name email role";
@@ -84,6 +85,11 @@ export const getDeveloperProfiles = async (_req, res) => {
 };
 
 export const getDeveloperProfileById = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    res.status(400).json({ message: "Invalid developer profile id" });
+    return;
+  }
+
   try {
     const profile = await DeveloperProfile.findById(req.params.id).populate(
       "user",

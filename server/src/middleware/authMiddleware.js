@@ -2,6 +2,11 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 export const protect = async (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    res.status(500).json({ message: "JWT_SECRET is not configured" });
+    return;
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
