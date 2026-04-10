@@ -51,6 +51,15 @@ npm run dev
 - `POST /api/auth/login` authenticates a user and returns a JWT
 - `GET /api/auth/me` returns the logged-in user when sent `Authorization: Bearer <token>`
 
+## Developer Profile API
+
+- `POST /api/profiles` creates the logged-in user's developer profile
+- `GET /api/profiles` lists developer profiles
+- `GET /api/profiles/me` returns the logged-in user's profile
+- `PUT /api/profiles/me` updates the logged-in user's profile
+- `DELETE /api/profiles/me` deletes the logged-in user's profile
+- `GET /api/profiles/:id` returns a developer profile by id
+
 ## Available Scripts
 
 - `npm run dev` starts frontend and backend together
