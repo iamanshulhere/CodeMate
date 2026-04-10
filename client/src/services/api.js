@@ -70,6 +70,10 @@ export function getMyProfile(token) {
   });
 }
 
+export function getProfileById(profileId) {
+  return request(`/api/profiles/${profileId}`);
+}
+
 export function createProfile(token, payload) {
   return request("/api/profiles", {
     method: "POST",
@@ -80,6 +84,18 @@ export function createProfile(token, payload) {
 
 export function getProfileMatches(token) {
   return request("/api/matches", {
+    headers: authHeaders(token)
+  });
+}
+
+export function getConversationMessages(token, userId) {
+  return request(`/api/messages/${userId}`, {
+    headers: authHeaders(token)
+  });
+}
+
+export function searchUsers(token, query) {
+  return request(`/api/users/search?q=${encodeURIComponent(query)}`, {
     headers: authHeaders(token)
   });
 }

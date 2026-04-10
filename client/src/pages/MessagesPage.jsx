@@ -3,7 +3,8 @@ function MessagesPage({
   chatError,
   chatInput,
   chatStatus,
-  matches,
+  contacts,
+  loadingHistory,
   messagesByUser,
   onChatInputChange,
   onNewThread,
@@ -39,20 +40,20 @@ function MessagesPage({
             {!chatConnected ? " - waiting for socket" : ""}
           </div>
 
-          {chatError ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {chatError}
-            </div>
-          ) : null}
+        {chatError ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {chatError}
+          </div>
+        ) : null}
 
-          {matches.length ? (
-            matches.map((match) => {
-              const userId = match.developer?.userId;
+          {contacts.length ? (
+            contacts.map((contact) => {
+              const userId = contact.userId;
               const lastMessage = userId ? messagesByUser[userId]?.at(-1) : null;
 
               return (
                 <button
-                  key={match.profileId}
+                  key={userId}
                   className={`block w-full rounded-3xl border p-4 text-left transition ${
                     selectedChatUserId === userId
                       ? "border-sky-300 bg-sky-50"
@@ -62,12 +63,10 @@ function MessagesPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-slate-950">
-                        {match.developer?.name || "Unknown"}
-                      </h3>
+                      <h3 className="font-bold text-slate-950">{contact.name || "Unknown"}</h3>
                       <p className="mt-1 text-sm text-slate-500">
                         {lastMessage?.text ||
-                          match.developer?.headline ||
+                          contact.headline ||
                           "Select this match to start chatting."}
                       </p>
                     </div>
@@ -98,6 +97,9 @@ function MessagesPage({
 
           <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
             <div className="max-h-72 space-y-3 overflow-y-auto">
+              {loadingHistory ? (
+                <p className="text-sm text-slate-500">Loading conversation history...</p>
+              ) : null}
               {selectedMessages.length ? (
                 selectedMessages.map((message) => (
                   <div

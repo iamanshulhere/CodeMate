@@ -6,12 +6,16 @@ import ConnectionsPage from "./pages/ConnectionsPage";
 import MessagesPage from "./pages/MessagesPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProjectsPage from "./pages/ProjectsPage";
+import PublicProfilePage from "./pages/PublicProfilePage";
 import {
   createProfile,
+  getConversationMessages,
   getCurrentUser,
+  getProfileById,
   getMyProfile,
   getProfileMatches,
   loginUser,
+  searchUsers,
   signupUser
 } from "./services/api";
 
@@ -37,6 +41,7 @@ function App() {
   const selectedChatUserIdRef = useRef("");
 
   const [activePage, setActivePage] = useState("profile");
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({
     name: "",
@@ -50,6 +55,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
   const [selectedChatUserId, setSelectedChatUserId] = useState("");
+  const [selectedChatUser, setSelectedChatUser] = useState(null);
   const [messagesByUser, setMessagesByUser] = useState({});
   const [chatInput, setChatInput] = useState("");
   const [profileDraft, setProfileDraft] = useState(emptyProfileDraft);
@@ -57,12 +63,20 @@ function App() {
   const [chatStatus, setChatStatus] = useState("Disconnected");
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingPublicProfile, setLoadingPublicProfile] = useState(false);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [authError, setAuthError] = useState("");
   const [dashboardError, setDashboardError] = useState("");
   const [chatError, setChatError] = useState("");
   const [projectActionMessage, setProjectActionMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [toastMessage, setToastMessage] = useState("");
+  const [publicProfile, setPublicProfile] = useState(null);
+  const [publicProfileError, setPublicProfileError] = useState("");
 
   const selectedMatch = useMemo(
     () =>
@@ -70,6 +84,69 @@ function App() {
       null,
     [matches, selectedChatUserId]
   );
+
+  const selectedConversationUser = useMemo(() => {
+    if (selectedMatch?.developer) {
+      return {
+        name: selectedMatch.developer.name,
+        headline: selectedMatch.developer.headline,
+        userId: selectedMatch.developer.userId
+      };
+    }
+
+    if (selectedChatUser) {
+      return {
+        name: selectedChatUser.name,
+        headline: selectedChatUser.headline || selectedChatUser.email,
+        userId: selectedChatUser.userId || selectedChatUser._id
+      };
+    }
+
+    return null;
+  }, [selectedChatUser, selectedMatch]);
+
+  const chatContacts = useMemo(() => {
+    const contactsMap = new Map();
+
+    matches.forEach((match) => {
+      if (!match.developer?.userId) {
+        return;
+      }
+
+      contactsMap.set(match.developer.userId, {
+        userId: match.developer.userId,
+        name: match.developer.name,
+        email: match.developer.email,
+        headline: match.developer.headline || "",
+        source: "match"
+      });
+    });
+
+    if (selectedChatUser?._id || selectedChatUser?.userId) {
+      const selectedUserId = selectedChatUser.userId || selectedChatUser._id;
+      contactsMap.set(selectedUserId, {
+        userId: selectedUserId,
+        name: selectedChatUser.name,
+        email: selectedChatUser.email,
+        headline: selectedChatUser.headline || selectedChatUser.email || "",
+        source: "search"
+      });
+    }
+
+    Object.entries(messagesByUser).forEach(([userId]) => {
+      if (!contactsMap.has(userId)) {
+        contactsMap.set(userId, {
+          userId,
+          name: userId,
+          email: "",
+          headline: "",
+          source: "history"
+        });
+      }
+    });
+
+    return Array.from(contactsMap.values());
+  }, [matches, messagesByUser, selectedChatUser]);
 
   useEffect(() => {
     if (!token) {
@@ -97,6 +174,88 @@ function App() {
   useEffect(() => {
     selectedChatUserIdRef.current = selectedChatUserId;
   }, [selectedChatUserId]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      console.log("[route] popstate", window.location.pathname);
+      setRoutePath(window.location.pathname);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToastMessage("");
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toastMessage]);
+
+  useEffect(() => {
+    if (!token) {
+      setSearchResults([]);
+      return undefined;
+    }
+
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchingUsers(false);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setSearchingUsers(true);
+
+      try {
+        const results = await searchUsers(token, searchQuery.trim());
+        console.log("[search] users fetched", results);
+        setSearchResults(results);
+      } catch (error) {
+        console.error("[search] failed", error);
+        setSearchResults([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery, token]);
+
+  useEffect(() => {
+    const profileId = getProfileIdFromPath(routePath);
+
+    if (!profileId) {
+      setPublicProfile(null);
+      setPublicProfileError("");
+      setLoadingPublicProfile(false);
+      return;
+    }
+
+    const loadPublicProfile = async () => {
+      setLoadingPublicProfile(true);
+      setPublicProfileError("");
+
+      try {
+        const fetchedProfile = await getProfileById(profileId);
+        console.log("[profile] public profile fetched", fetchedProfile);
+        setPublicProfile(fetchedProfile);
+      } catch (error) {
+        console.error("[profile] public profile failed", error);
+        setPublicProfile(null);
+        setPublicProfileError(error.message || "Failed to load public profile.");
+      } finally {
+        setLoadingPublicProfile(false);
+      }
+    };
+
+    void loadPublicProfile();
+  }, [routePath]);
 
   const disconnectSocket = () => {
     if (socketRef.current) {
@@ -382,21 +541,41 @@ function App() {
     setSendingMessage(false);
   };
 
-  const handleSelectConversation = (userId) => {
+  const handleSelectConversation = async (userId, userDetails = null) => {
     if (!userId) {
       return;
     }
 
     console.log("[chat] selecting conversation", userId);
     setSelectedChatUserId(userId);
+    if (userDetails) {
+      setSelectedChatUser(userDetails);
+    }
     setActivePage("messages");
-    setMessagesByUser((previousMessages) => ({
-      ...previousMessages,
-      [userId]: (previousMessages[userId] || []).map((message) => ({
-        ...message,
-        read: true
-      }))
-    }));
+    setLoadingHistory(true);
+
+    try {
+      const response = await getConversationMessages(token, userId);
+      console.log("[chat] history fetched", response);
+      setMessagesByUser((previousMessages) => ({
+        ...previousMessages,
+        [userId]: (response.messages || []).map((message) => ({
+          id: message._id,
+          text: message.text,
+          sentAt: message.createdAt,
+          direction:
+            String(message.sender) === String(currentUserIdRef.current)
+              ? "outbound"
+              : "inbound",
+          read: true
+        }))
+      }));
+    } catch (error) {
+      console.error("[chat] history failed", error);
+      setChatError(error.message || "Failed to load message history.");
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleProjectAction = (action) => {
@@ -406,13 +585,43 @@ function App() {
     );
   };
 
+  const handleSearchSelect = (user) => {
+    console.log("[search] selected user", user);
+    setSearchQuery("");
+    setSearchResults([]);
+    void handleSelectConversation(user._id, {
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      headline: user.email
+    });
+  };
+
+  const handleShareProfile = async () => {
+    if (!profile?._id) {
+      setDashboardError("Create a profile before sharing it.");
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/profile/${profile._id}`;
+    console.log("[profile] share url", shareUrl);
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setToastMessage("Profile link copied!");
+    } catch (error) {
+      console.error("[profile] share failed", error);
+      setDashboardError("Failed to copy profile link.");
+    }
+  };
+
   const renderActivePage = () => {
     switch (activePage) {
       case "connections":
         return (
           <ConnectionsPage
             matches={matches}
-            onOpenChat={handleSelectConversation}
+            onOpenChat={(userId) => void handleSelectConversation(userId)}
           />
         );
       case "projects":
@@ -429,14 +638,15 @@ function App() {
             chatError={chatError}
             chatInput={chatInput}
             chatStatus={chatStatus}
-            matches={matches}
+            contacts={chatContacts}
+            loadingHistory={loadingHistory}
             messagesByUser={messagesByUser}
             onChatInputChange={setChatInput}
             onNewThread={() => handleProjectAction("New thread")}
-            onSelectConversation={handleSelectConversation}
+            onSelectConversation={(userId) => void handleSelectConversation(userId)}
             onSendMessage={handleSendMessage}
             selectedChatUserId={selectedChatUserId}
-            selectedMatch={selectedMatch}
+            selectedMatch={selectedConversationUser}
             selectedMessages={messagesByUser[selectedChatUserId] || []}
             sendingMessage={sendingMessage}
             socketUrl={socketUrl}
@@ -449,6 +659,7 @@ function App() {
             currentUser={currentUser}
             onCreateProfile={handleCreateProfile}
             onProfileDraftChange={handleProfileDraftChange}
+            onShareProfile={handleShareProfile}
             profile={profile}
             profileDraft={profileDraft}
             submittingProfile={submittingProfile}
@@ -456,6 +667,16 @@ function App() {
         );
     }
   };
+
+  if (getProfileIdFromPath(routePath)) {
+    return (
+      <PublicProfilePage
+        error={publicProfileError}
+        loading={loadingPublicProfile}
+        profile={publicProfile}
+      />
+    );
+  }
 
   if (!token) {
     return (
@@ -478,6 +699,11 @@ function App() {
           activePage={activePage}
           onLogout={handleLogout}
           onNavigate={setActivePage}
+          onSearchChange={setSearchQuery}
+          onSelectSearchUser={handleSearchSelect}
+          searchQuery={searchQuery}
+          searchResults={searchResults}
+          searchingUsers={searchingUsers}
         />
 
         {loadingDashboard ? (
@@ -491,6 +717,11 @@ function App() {
 
         <div className="transition-all duration-200">{renderActivePage()}</div>
       </div>
+      {toastMessage ? (
+        <div className="fixed bottom-4 right-4 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+          {toastMessage}
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -515,6 +746,11 @@ function splitCommaValues(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getProfileIdFromPath(pathname) {
+  const match = pathname.match(/^\/profile\/([^/]+)$/);
+  return match ? match[1] : "";
 }
 
 export default App;

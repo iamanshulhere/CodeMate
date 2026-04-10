@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import Message from "../models/Message.js";
 import User from "../models/User.js";
 
 const getUserRoom = (userId) => `user:${userId}`;
@@ -89,7 +90,7 @@ export const initializeChatSocket = (io) => {
       });
     });
 
-    socket.on("chat:message", ({ targetUserId, text } = {}) => {
+    socket.on("chat:message", async ({ targetUserId, text } = {}) => {
       if (!targetUserId || !text?.trim()) {
         socket.emit("chat:error", {
           message: "targetUserId and non-empty text are required"
@@ -98,16 +99,30 @@ export const initializeChatSocket = (io) => {
       }
 
       const conversationId = buildConversationId(currentUserId, targetUserId);
-      const payload = {
-        conversationId,
-        fromUserId: currentUserId,
-        toUserId: String(targetUserId),
-        text: text.trim(),
-        sentAt: new Date().toISOString()
-      };
+      try {
+        const savedMessage = await Message.create({
+          sender: currentUserId,
+          receiver: targetUserId,
+          conversationId,
+          text: text.trim()
+        });
 
-      io.to(currentUserRoom).emit("chat:message", payload);
-      io.to(getUserRoom(targetUserId)).emit("chat:message", payload);
+        const payload = {
+          id: String(savedMessage._id),
+          conversationId,
+          fromUserId: currentUserId,
+          toUserId: String(targetUserId),
+          text: savedMessage.text,
+          sentAt: savedMessage.createdAt.toISOString()
+        };
+
+        io.to(currentUserRoom).emit("chat:message", payload);
+        io.to(getUserRoom(targetUserId)).emit("chat:message", payload);
+      } catch (error) {
+        socket.emit("chat:error", {
+          message: "Failed to save message"
+        });
+      }
     });
 
     socket.on("call:initiate", ({ targetUserId } = {}) => {

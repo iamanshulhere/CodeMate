@@ -2,6 +2,7 @@ function ProfilePage({
   currentUser,
   onCreateProfile,
   onProfileDraftChange,
+  onShareProfile,
   profile,
   profileDraft,
   submittingProfile
@@ -42,7 +43,15 @@ function ProfilePage({
         {profile ? (
           <div className="space-y-6">
             <section>
-              <h3 className="text-lg font-bold text-slate-950">About</h3>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-bold text-slate-950">About</h3>
+                <button
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  onClick={onShareProfile}
+                >
+                  Share Profile
+                </button>
+              </div>
               <p className="mt-3 text-sm leading-7 text-slate-600">
                 {profile.bio || "No bio added yet."}
               </p>
