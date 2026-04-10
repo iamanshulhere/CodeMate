@@ -110,6 +110,95 @@ export const initializeChatSocket = (io) => {
       io.to(getUserRoom(targetUserId)).emit("chat:message", payload);
     });
 
+    socket.on("call:initiate", ({ targetUserId } = {}) => {
+      if (!targetUserId) {
+        socket.emit("call:error", { message: "targetUserId is required" });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:incoming", {
+        fromUserId: currentUserId
+      });
+    });
+
+    socket.on("call:accept", ({ targetUserId } = {}) => {
+      if (!targetUserId) {
+        socket.emit("call:error", { message: "targetUserId is required" });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:accepted", {
+        fromUserId: currentUserId
+      });
+    });
+
+    socket.on("call:reject", ({ targetUserId } = {}) => {
+      if (!targetUserId) {
+        socket.emit("call:error", { message: "targetUserId is required" });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:rejected", {
+        fromUserId: currentUserId
+      });
+    });
+
+    socket.on("call:offer", ({ targetUserId, offer } = {}) => {
+      if (!targetUserId || !offer) {
+        socket.emit("call:error", {
+          message: "targetUserId and offer are required"
+        });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:offer", {
+        fromUserId: currentUserId,
+        offer
+      });
+    });
+
+    socket.on("call:answer", ({ targetUserId, answer } = {}) => {
+      if (!targetUserId || !answer) {
+        socket.emit("call:error", {
+          message: "targetUserId and answer are required"
+        });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:answer", {
+        fromUserId: currentUserId,
+        answer
+      });
+    });
+
+    socket.on("call:ice-candidate", ({ targetUserId, candidate } = {}) => {
+      if (!targetUserId || !candidate) {
+        socket.emit("call:error", {
+          message: "targetUserId and candidate are required"
+        });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:ice-candidate", {
+        fromUserId: currentUserId,
+        candidate
+      });
+    });
+
+    socket.on("call:end", ({ targetUserId } = {}) => {
+      if (!targetUserId) {
+        socket.emit("call:error", { message: "targetUserId is required" });
+        return;
+      }
+
+      io.to(getUserRoom(targetUserId)).emit("call:ended", {
+        fromUserId: currentUserId
+      });
+      io.to(currentUserRoom).emit("call:ended", {
+        fromUserId: currentUserId
+      });
+    });
+
     socket.on("disconnect", () => {
       socket.leave(currentUserRoom);
     });
