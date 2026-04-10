@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
 
@@ -15,6 +15,6 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "CodeMate API is running" });
 });
 
-app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
 
 export default app;

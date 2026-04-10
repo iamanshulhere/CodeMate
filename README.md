@@ -34,6 +34,7 @@ cp server/.env.example server/.env
 ```
 
 Update `MONGODB_URI` as needed.
+Set `JWT_SECRET` to a strong random secret before starting the backend.
 
 ### 3. Run the app
 
@@ -43,6 +44,12 @@ npm run dev
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
+
+## Auth API
+
+- `POST /api/auth/signup` creates a user and returns a JWT
+- `POST /api/auth/login` authenticates a user and returns a JWT
+- `GET /api/auth/me` returns the logged-in user when sent `Authorization: Bearer <token>`
 
 ## Available Scripts
 
