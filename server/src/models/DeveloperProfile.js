@@ -115,6 +115,12 @@ const developerProfileSchema = new mongoose.Schema(
       default: 0
     },
     skills: [skillSchema],
+    interests: [
+      {
+        type: String,
+        trim: true
+      }
+    ],
     techStack: [techStackItemSchema],
     experience: [experienceSchema],
     socialLinks: {
