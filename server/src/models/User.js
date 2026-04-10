@@ -23,6 +23,20 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       default: "developer"
+    },
+    avatarUrl: {
+      type: String,
+      trim: true
+    },
+    interests: [
+      {
+        type: String,
+        trim: true
+      }
+    ],
+    isOnline: {
+      type: Boolean,
+      default: false
     }
   },
   {
