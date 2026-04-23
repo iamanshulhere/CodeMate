@@ -4,9 +4,9 @@
   "private": true,
   "description": "Developer collaboration platform built with the MERN stack",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "dev:client": "npm run dev --prefix client",
-    "dev:server": "npm run dev --prefix server",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently --names \"server,client\" --prefix-colors \"blue,magenta\" \"npm run server\" \"npm run client\"",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client"
   },
   "devDependencies": {
