@@ -1,9 +1,12 @@
+import { useEffect, useRef } from "react";
+
 function MessagesPage({
   chatConnected,
   chatError,
   chatInput,
   chatStatus,
   contacts,
+  currentUserId,
   loadingHistory,
   messagesByUser,
   onChatInputChange,
@@ -11,11 +14,20 @@ function MessagesPage({
   onSelectConversation,
   onSendMessage,
   selectedChatUserId,
-  selectedMatch,
+  selectedConversationUser,
   selectedMessages,
   sendingMessage,
   socketUrl
 }) {
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end"
+    });
+  }, [selectedMessages]);
+
   return (
     <section className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -40,11 +52,11 @@ function MessagesPage({
             {!chatConnected ? " - waiting for socket" : ""}
           </div>
 
-        {chatError ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {chatError}
-          </div>
-        ) : null}
+          {chatError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {chatError}
+            </div>
+          ) : null}
 
           {contacts.length ? (
             contacts.map((contact) => {
@@ -87,47 +99,55 @@ function MessagesPage({
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
           <div className="border-b border-slate-200 pb-4">
             <h3 className="text-lg font-bold text-slate-950">
-              {selectedMatch?.developer?.name || "Messages"}
+              {selectedConversationUser?.name || "Messages"}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              {selectedMatch?.developer?.headline ||
+              {selectedConversationUser?.headline ||
                 "Choose a connection to start a conversation."}
             </p>
           </div>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
-            <div className="max-h-72 space-y-3 overflow-y-auto">
+          <div className="mt-4 rounded-3xl border border-slate-200 bg-[#e9f2eb] p-4">
+            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
               {loadingHistory ? (
                 <p className="text-sm text-slate-500">Loading conversation history...</p>
               ) : null}
               {selectedMessages.length ? (
-                selectedMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.direction === "outbound" ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                selectedMessages.map((message) => {
+                  const isOwn = String(message.senderId) === String(currentUserId);
+
+                  return (
                     <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                        message.direction === "outbound"
-                          ? "bg-slate-950 text-white"
-                          : "bg-slate-100 text-slate-700"
+                      key={message.id}
+                      className={`flex ${
+                        isOwn ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <p>{message.text}</p>
-                      <p
-                        className={`mt-2 text-[11px] ${
-                          message.direction === "outbound"
-                            ? "text-slate-300"
-                            : "text-slate-400"
-                        }`}
-                      >
-                        {formatTimestamp(message.sentAt)}
-                      </p>
+                      <div className="max-w-[60%] min-w-[9rem]">
+                        <div
+                          className={`rounded-[20px] px-4 py-3 text-sm shadow-sm ${
+                            isOwn
+                              ? "rounded-br-md bg-sky-900 text-white"
+                              : "rounded-bl-md bg-slate-200 text-slate-900"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap break-words leading-6">
+                            {message.text}
+                          </p>
+                        </div>
+                        <p
+                          className={`mt-1 px-2 text-[11px] ${
+                            isOwn
+                              ? "text-right text-slate-500"
+                              : "text-left text-slate-500"
+                          }`}
+                        >
+                          {formatTimestamp(message.sentAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-sm text-slate-500">
                   {selectedChatUserId
@@ -135,6 +155,7 @@ function MessagesPage({
                     : "Choose a connection to begin chatting."}
                 </p>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
@@ -143,7 +164,7 @@ function MessagesPage({
             onChange={(event) => onChatInputChange(event.target.value)}
             placeholder={
               selectedChatUserId
-                ? `Message ${selectedMatch?.developer?.name || "your collaborator"}...`
+                ? `Message ${selectedConversationUser?.name || "your collaborator"}...`
                 : "Select a connection first to send a message."
             }
             value={chatInput}

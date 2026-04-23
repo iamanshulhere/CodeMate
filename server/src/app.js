@@ -31,6 +31,10 @@ app.use((req, _res, next) => {
 console.log("[app] Primary frontend origin:", allowedOrigin);
 console.log("[app] Allowed CORS origins:", getAllowedOrigins().join(", "));
 
+app.get("/", (_req, res) => {
+  res.status(200).send("Backend is running");
+});
+
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "CodeMate API is running" });
 });

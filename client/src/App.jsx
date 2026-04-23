@@ -335,6 +335,8 @@ function App() {
             ...existingConversation,
             {
               id: `${payload.sentAt}-${payload.fromUserId}-${existingConversation.length}`,
+              senderId: payload.fromUserId,
+              receiverId: payload.toUserId,
               text: payload.text,
               sentAt: payload.sentAt,
               direction:
@@ -582,6 +584,8 @@ function App() {
         ...previousMessages,
         [userId]: (response.messages || []).map((message) => ({
           id: message._id,
+          senderId: String(message.sender),
+          receiverId: String(message.receiver),
           text: message.text,
           sentAt: message.createdAt,
           direction:
@@ -660,6 +664,7 @@ function App() {
             chatInput={chatInput}
             chatStatus={chatStatus}
             contacts={chatContacts}
+            currentUserId={currentUser?._id || currentUserIdRef.current}
             loadingHistory={loadingHistory}
             messagesByUser={messagesByUser}
             onChatInputChange={setChatInput}
@@ -667,7 +672,7 @@ function App() {
             onSelectConversation={(userId) => void handleSelectConversation(userId)}
             onSendMessage={handleSendMessage}
             selectedChatUserId={selectedChatUserId}
-            selectedMatch={selectedConversationUser}
+            selectedConversationUser={selectedConversationUser}
             selectedMessages={messagesByUser[selectedChatUserId] || []}
             sendingMessage={sendingMessage}
             socketUrl={socketUrl}
