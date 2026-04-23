@@ -20,7 +20,7 @@ import {
 } from "./services/api";
 
 const tokenStorageKey = "codemate_token";
-const socketUrl = "http://127.0.0.1:5000";
+const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const emptyAuthForm = {
   name: "",
   email: "",

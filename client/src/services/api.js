@@ -1,4 +1,4 @@
-const apiBaseUrl = "http://127.0.0.1:5000";
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const defaultHeaders = {
   "Content-Type": "application/json"
@@ -6,15 +6,35 @@ const defaultHeaders = {
 
 async function request(path, options = {}) {
   const url = `${apiBaseUrl}${path}`;
-  console.log("[api] request", url, options.method || "GET");
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers || {})
-    }
+  console.log("[api] request", {
+    url,
+    method: options.method || "GET"
   });
+
+  let response;
+
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...(options.headers || {})
+      }
+    });
+  } catch (error) {
+    console.error("[api] network error", {
+      url,
+      method: options.method || "GET",
+      message: error.message
+    });
+
+    const networkError = new Error(
+      `Cannot reach the backend at ${apiBaseUrl}. Make sure the Express server is running on port 5000.`
+    );
+    networkError.status = 0;
+    networkError.cause = error;
+    throw networkError;
+  }
 
   const responseText = await response.text();
   let data = null;
@@ -27,6 +47,12 @@ async function request(path, options = {}) {
       data = { message: responseText };
     }
   }
+
+  console.log("[api] response", {
+    url,
+    status: response.status,
+    ok: response.ok
+  });
 
   if (!response.ok) {
     const error = new Error(data?.message || "API request failed");
@@ -52,7 +78,7 @@ export function loginUser(payload) {
 }
 
 export function signupUser(payload) {
-  return request("/api/auth/signup", {
+  return request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(payload)
   });
