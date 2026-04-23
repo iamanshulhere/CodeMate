@@ -20,7 +20,7 @@ import {
 } from "./services/api";
 
 const tokenStorageKey = "codemate_token";
-const socketUrl = "http://127.0.0.1:5000";
+const socketUrl = "http://127.0.0.1:5173";
 
 const emptyProfileDraft = {
   headline: "",

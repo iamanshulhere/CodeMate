@@ -1,55 +1,62 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "./.env" }); // Force load .env
-
 import http from "http";
+import path from "path";
 import { Server } from "socket.io";
+import { fileURLToPath } from "url";
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import { initializeChatSocket } from "./sockets/chatSocket.js";
 
-/* =========================
-   Debug ENV (REMOVE LATER)
-========================= */
-console.log("ENV CHECK MONGODB_URI:", process.env.MONGODB_URI);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDir = path.dirname(currentFilePath);
+const envPath = path.resolve(currentDir, "../.env");
 
-/* =========================
-   Port Configuration
-========================= */
-const PORT = process.env.PORT || 5000;
+dotenv.config({ path: envPath });
 
-/* =========================
-   Start Server Function
-========================= */
+const PORT = Number(process.env.PORT) || 5000;
+const CLIENT_URL = process.env.CLIENT_URL || "http://127.0.0.1:5173";
+
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+    console.log("[server] Loading environment from:", envPath);
+    console.log("[server] CLIENT_URL:", CLIENT_URL);
+    console.log("[server] MONGODB_URI loaded:", Boolean(process.env.MONGODB_URI));
+
     await connectDB();
 
-    // Create HTTP server
     const server = http.createServer(app);
-
-    // Initialize Socket.IO
     const io = new Server(server, {
       cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        origin: CLIENT_URL,
         methods: ["GET", "POST"],
-      },
+        credentials: true
+      }
     });
 
-    // Initialize chat sockets
     initializeChatSocket(io);
 
-    // Start server
+    server.on("error", (error) => {
+      console.error("[server] HTTP server error:", error.message);
+      process.exit(1);
+    });
+
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`[server] Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Server startup failed:", error.message);
+    console.error("[server] Server startup failed:", error.message);
     process.exit(1);
   }
 };
 
-/* =========================
-   Run Server
-========================= */
+process.on("unhandledRejection", (error) => {
+  console.error("[server] Unhandled promise rejection:", error);
+  process.exit(1);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[server] Uncaught exception:", error);
+  process.exit(1);
+});
+
 startServer();
