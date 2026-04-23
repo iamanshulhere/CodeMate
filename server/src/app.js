@@ -1,6 +1,6 @@
-import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import { getAllowedOrigins, isAllowedOrigin } from "./config/origins.js";
 import authRoutes from "./routes/authRoutes.js";
 import developerProfileRoutes from "./routes/developerProfileRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
@@ -11,12 +11,21 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://127.0.0.1:5173",
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true
   })
 );
 
 app.use(express.json());
+
+console.log("[app] Allowed CORS origins:", getAllowedOrigins().join(", "));
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "CodeMate API is running" });

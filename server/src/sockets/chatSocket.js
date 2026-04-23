@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
 
@@ -27,6 +28,7 @@ const authenticateSocket = async (socket, next) => {
   const token = extractToken(socket);
 
   if (!token) {
+    console.error("[socket] Missing auth token during handshake");
     next(new Error("Authentication failed: token missing"));
     return;
   }
@@ -36,23 +38,32 @@ const authenticateSocket = async (socket, next) => {
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
+      console.error("[socket] Auth failed - user not found:", decoded.userId);
       next(new Error("Authentication failed: user not found"));
       return;
     }
 
     socket.user = user;
+    console.log("[socket] Authenticated user:", String(user._id));
     next();
   } catch (error) {
+    console.error("[socket] Auth failed - invalid token:", error.message);
     next(new Error("Authentication failed: invalid token"));
   }
 };
 
 export const initializeChatSocket = (io) => {
+  console.log("[socket] Initializing Socket.IO handlers");
   io.use(authenticateSocket);
 
   io.on("connection", (socket) => {
     const currentUserId = String(socket.user._id);
     const currentUserRoom = getUserRoom(currentUserId);
+
+    console.log("[socket] Client connected:", {
+      socketId: socket.id,
+      userId: currentUserId
+    });
 
     socket.join(currentUserRoom);
     socket.emit("chat:ready", {
@@ -62,6 +73,7 @@ export const initializeChatSocket = (io) => {
 
     socket.on("chat:join", ({ targetUserId } = {}) => {
       if (!targetUserId) {
+        console.warn("[socket] chat:join missing targetUserId");
         socket.emit("chat:error", {
           message: "targetUserId is required to join a private room"
         });
@@ -77,10 +89,18 @@ export const initializeChatSocket = (io) => {
         conversationId,
         participants: [currentUserId, String(targetUserId)].sort()
       });
+
+      console.log("[socket] Joined conversation:", {
+        socketId: socket.id,
+        userId: currentUserId,
+        targetUserId: String(targetUserId),
+        conversationId
+      });
     });
 
     socket.on("chat:typing", ({ targetUserId, isTyping = false } = {}) => {
       if (!targetUserId) {
+        console.warn("[socket] chat:typing missing targetUserId");
         return;
       }
 
@@ -92,8 +112,30 @@ export const initializeChatSocket = (io) => {
 
     socket.on("chat:message", async ({ targetUserId, text } = {}) => {
       if (!targetUserId || !text?.trim()) {
+        console.warn("[socket] chat:message invalid payload", {
+          targetUserId,
+          hasText: Boolean(text?.trim())
+        });
         socket.emit("chat:error", {
           message: "targetUserId and non-empty text are required"
+        });
+        return;
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+        console.warn("[socket] chat:message invalid target user id:", targetUserId);
+        socket.emit("chat:error", {
+          message: "targetUserId is invalid"
+        });
+        return;
+      }
+
+      const targetUser = await User.findById(targetUserId).select("_id");
+
+      if (!targetUser) {
+        console.warn("[socket] chat:message target user not found:", targetUserId);
+        socket.emit("chat:error", {
+          message: "Target user not found"
         });
         return;
       }
@@ -116,9 +158,17 @@ export const initializeChatSocket = (io) => {
           sentAt: savedMessage.createdAt.toISOString()
         };
 
+        console.log("[socket] Message saved and emitted:", {
+          conversationId,
+          fromUserId: currentUserId,
+          toUserId: String(targetUserId),
+          messageId: String(savedMessage._id)
+        });
+
         io.to(currentUserRoom).emit("chat:message", payload);
         io.to(getUserRoom(targetUserId)).emit("chat:message", payload);
       } catch (error) {
+        console.error("[socket] Failed to save message:", error.message);
         socket.emit("chat:error", {
           message: "Failed to save message"
         });
@@ -215,6 +265,10 @@ export const initializeChatSocket = (io) => {
     });
 
     socket.on("disconnect", () => {
+      console.log("[socket] Client disconnected:", {
+        socketId: socket.id,
+        userId: currentUserId
+      });
       socket.leave(currentUserRoom);
     });
   });
