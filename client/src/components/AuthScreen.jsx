@@ -7,55 +7,55 @@ function AuthScreen({
   onAuthModeChange,
   onSubmit
 }) {
+  const isLogin = authMode === "login";
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.20),_transparent_24%),linear-gradient(180deg,_#fbf7f0_0%,_#f7fafc_100%)] px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-sky-700">
-            CodeMate Frontend
-          </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-            Clean collaboration dashboard.
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Log in with JWT auth, load your developer profile, browse connections,
-            and chat live through Socket.IO.
-          </p>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <StatTile label="Backend" value="Live API" />
-            <StatTile label="Auth" value="JWT" />
-            <StatTile label="Realtime" value="Socket.IO" />
+    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md items-center justify-center">
+        <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-700">
+              CodeMate
+            </p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+              {isLogin ? "Login to your account" : "Create your account"}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              {isLogin
+                ? "Enter your email and password to continue."
+                : "Set up your account with your name, email, and password."}
+            </p>
           </div>
-        </section>
 
-        <section className="rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8">
-          <div className="mb-6 flex rounded-full bg-slate-100 p-1">
+          <div className="mt-6 flex rounded-full bg-slate-100 p-1">
             <button
               className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                authMode === "login"
+                isLogin
                   ? "bg-slate-950 text-white"
                   : "text-slate-600 hover:text-slate-900"
               }`}
               onClick={() => onAuthModeChange("login")}
+              type="button"
             >
               Login
             </button>
             <button
               className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                authMode === "signup"
+                !isLogin
                   ? "bg-slate-950 text-white"
                   : "text-slate-600 hover:text-slate-900"
               }`}
               onClick={() => onAuthModeChange("signup")}
+              type="button"
             >
               Sign Up
             </button>
           </div>
 
-          <form className="space-y-4" onSubmit={onSubmit}>
-            {authMode === "signup" ? (
+          <form className="mt-6 space-y-4" noValidate onSubmit={onSubmit}>
+            {!isLogin ? (
               <FormField
+                autoComplete="name"
                 label="Name"
                 name="name"
                 onChange={onAuthFormChange}
@@ -63,7 +63,9 @@ function AuthScreen({
                 value={authForm.name}
               />
             ) : null}
+
             <FormField
+              autoComplete="email"
               label="Email"
               name="email"
               onChange={onAuthFormChange}
@@ -71,7 +73,9 @@ function AuthScreen({
               type="email"
               value={authForm.email}
             />
+
             <FormField
+              autoComplete={isLogin ? "current-password" : "new-password"}
               label="Password"
               name="password"
               onChange={onAuthFormChange}
@@ -92,10 +96,10 @@ function AuthScreen({
               type="submit"
             >
               {loadingAuth
-                ? authMode === "login"
+                ? isLogin
                   ? "Logging in..."
                   : "Creating account..."
-                : authMode === "login"
+                : isLogin
                   ? "Login"
                   : "Create account"}
             </button>
@@ -107,6 +111,7 @@ function AuthScreen({
 }
 
 function FormField({
+  autoComplete,
   label,
   name,
   onChange,
@@ -118,6 +123,7 @@ function FormField({
     <label className="block">
       <span className="mb-2 block text-sm font-semibold text-slate-700">{label}</span>
       <input
+        autoComplete={autoComplete}
         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300"
         name={name}
         onChange={onChange}
@@ -126,15 +132,6 @@ function FormField({
         value={value}
       />
     </label>
-  );
-}
-
-function StatTile({ label, value }) {
-  return (
-    <div className="rounded-3xl bg-slate-950 px-4 py-4 text-white">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-black">{value}</p>
-    </div>
   );
 }
 

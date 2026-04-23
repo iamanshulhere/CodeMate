@@ -20,7 +20,12 @@ import {
 } from "./services/api";
 
 const tokenStorageKey = "codemate_token";
-const socketUrl = "http://127.0.0.1:5173";
+const socketUrl = "http://127.0.0.1:5000";
+const emptyAuthForm = {
+  name: "",
+  email: "",
+  password: ""
+};
 
 const emptyProfileDraft = {
   headline: "",
@@ -40,11 +45,7 @@ function App() {
   const [activePage, setActivePage] = useState("profile");
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [authMode, setAuthMode] = useState("login");
-  const [authForm, setAuthForm] = useState({
-    name: "",
-    email: "",
-    password: ""
-  });
+  const [authForm, setAuthForm] = useState(emptyAuthForm);
   const [token, setToken] = useState(
     () => localStorage.getItem(tokenStorageKey) || ""
   );
@@ -272,10 +273,12 @@ function App() {
 
     disconnectSocket();
     console.log("[socket] connecting", socketUrl);
+    console.log("[socket] token available", Boolean(authToken));
+    setChatStatus("Connecting...");
 
     const socket = io(socketUrl, {
-        auth: {
-        token: token
+      auth: {
+        token: authToken
       },
       transports: ["websocket"]
     });
@@ -395,7 +398,18 @@ function App() {
 
   const handleAuthFormChange = (event) => {
     const { name, value } = event.target;
+    setAuthError("");
     setAuthForm((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleAuthModeChange = (nextMode) => {
+    setAuthMode(nextMode);
+    setAuthError("");
+    setAuthForm((previousForm) => ({
+      name: nextMode === "signup" ? previousForm.name : "",
+      email: previousForm.email,
+      password: ""
+    }));
   };
 
   const handleProfileDraftChange = (event) => {
@@ -405,6 +419,13 @@ function App() {
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
+    const validationError = validateAuthForm(authMode, authForm);
+
+    if (validationError) {
+      setAuthError(validationError);
+      return;
+    }
+
     setLoadingAuth(true);
     setAuthError("");
 
@@ -422,6 +443,7 @@ function App() {
             });
 
       console.log("[auth] success", authResponse);
+      setActivePage("profile");
       setToken(authResponse.token);
       setCurrentUser({
         _id: authResponse._id,
@@ -429,9 +451,10 @@ function App() {
         email: authResponse.email,
         role: authResponse.role
       });
+      setAuthForm(emptyAuthForm);
     } catch (error) {
       console.error("[auth] failed", error);
-      setAuthError(error.message || "Authentication failed.");
+      setAuthError(resolveAuthError(authMode, error));
     } finally {
       setLoadingAuth(false);
     }
@@ -684,7 +707,7 @@ function App() {
         authMode={authMode}
         loadingAuth={loadingAuth}
         onAuthFormChange={handleAuthFormChange}
-        onAuthModeChange={setAuthMode}
+        onAuthModeChange={handleAuthModeChange}
         onSubmit={handleAuthSubmit}
       />
     );
@@ -744,6 +767,41 @@ function splitCommaValues(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function validateAuthForm(mode, form) {
+  const normalizedEmail = form.email.trim();
+  const password = form.password.trim();
+
+  if (mode === "signup" && !form.name.trim()) {
+    return "Name is required.";
+  }
+
+  if (!normalizedEmail || !password) {
+    return "Email and password are required.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return "Enter a valid email address.";
+  }
+
+  return "";
+}
+
+function resolveAuthError(mode, error) {
+  if (mode === "signup" && error.status === 409) {
+    return "User already exists";
+  }
+
+  if (mode === "login" && error.status === 404) {
+    return "User not found";
+  }
+
+  if (mode === "login" && error.status === 401) {
+    return "Invalid credentials";
+  }
+
+  return error.message || "Authentication failed.";
 }
 
 function getProfileIdFromPath(pathname) {

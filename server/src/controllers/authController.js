@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const normalizeEmail = (email) => email?.trim().toLowerCase();
+const trimValue = (value) => value?.trim() || "";
 
 const generateToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -14,12 +15,29 @@ const buildAuthResponse = (user) => ({
   token: generateToken(user._id)
 });
 
+const getSignupValidationError = ({ name, email, password }) => {
+  if (!trimValue(name) || !trimValue(email) || !trimValue(password)) {
+    return "Name, email, and password are required";
+  }
+
+  return "";
+};
+
+const getLoginValidationError = ({ email, password }) => {
+  if (!trimValue(email) || !trimValue(password)) {
+    return "Email and password are required";
+  }
+
+  return "";
+};
+
 export const signupUser = async (req, res) => {
   const { name, email, password } = req.body;
   const normalizedEmail = normalizeEmail(email);
+  const validationError = getSignupValidationError({ name, email, password });
 
-  if (!name?.trim() || !normalizedEmail || !password) {
-    res.status(400).json({ message: "Name, email, and password are required" });
+  if (validationError) {
+    res.status(400).json({ message: validationError });
     return;
   }
 
@@ -50,17 +68,25 @@ export const signupUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = normalizeEmail(email);
+  const validationError = getLoginValidationError({ email, password });
 
-  if (!normalizedEmail || !password) {
-    res.status(400).json({ message: "Email and password are required" });
+  if (validationError) {
+    res.status(400).json({ message: validationError });
     return;
   }
 
   try {
     const user = await User.findOne({ email: normalizedEmail });
 
-    if (!user || !(await user.matchPassword(password))) {
-      res.status(401).json({ message: "Invalid email or password" });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    const passwordMatches = await user.matchPassword(password);
+
+    if (!passwordMatches) {
+      res.status(401).json({ message: "Invalid credentials" });
       return;
     }
 
