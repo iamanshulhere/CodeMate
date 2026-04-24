@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import { useEffect, useState } from "react";
 import AuthScreen from "./components/AuthScreen";
 import Navbar from "./components/Navbar";
 import ConnectionsPage from "./pages/ConnectionsPage";
-import MessagesPage from "./pages/MessagesPage";
+import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import {
   createProfile,
-  getConversationMessages,
   getCurrentUser,
   getProfileById,
   getMyProfile,
@@ -20,7 +18,6 @@ import {
 } from "./services/api";
 
 const tokenStorageKey = "codemate_token";
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const emptyAuthForm = {
   name: "",
   email: "",
@@ -38,10 +35,6 @@ const emptyProfileDraft = {
 };
 
 function App() {
-  const socketRef = useRef(null);
-  const currentUserIdRef = useRef("");
-  const selectedChatUserIdRef = useRef("");
-
   const [activePage, setActivePage] = useState("profile");
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
   const [authMode, setAuthMode] = useState("login");
@@ -54,21 +47,14 @@ function App() {
   const [matches, setMatches] = useState([]);
   const [selectedChatUserId, setSelectedChatUserId] = useState("");
   const [selectedChatUser, setSelectedChatUser] = useState(null);
-  const [messagesByUser, setMessagesByUser] = useState({});
-  const [chatInput, setChatInput] = useState("");
   const [profileDraft, setProfileDraft] = useState(emptyProfileDraft);
-  const [chatConnected, setChatConnected] = useState(false);
-  const [chatStatus, setChatStatus] = useState("Disconnected");
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingPublicProfile, setLoadingPublicProfile] = useState(false);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [submittingProfile, setSubmittingProfile] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [authError, setAuthError] = useState("");
   const [dashboardError, setDashboardError] = useState("");
-  const [chatError, setChatError] = useState("");
   const [projectActionMessage, setProjectActionMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -76,79 +62,9 @@ function App() {
   const [publicProfile, setPublicProfile] = useState(null);
   const [publicProfileError, setPublicProfileError] = useState("");
 
-  const selectedMatch = useMemo(
-    () =>
-      matches.find((match) => match.developer?.userId === selectedChatUserId) ||
-      null,
-    [matches, selectedChatUserId]
-  );
-
-  const selectedConversationUser = useMemo(() => {
-    if (selectedMatch?.developer) {
-      return {
-        name: selectedMatch.developer.name,
-        headline: selectedMatch.developer.headline,
-        userId: selectedMatch.developer.userId
-      };
-    }
-
-    if (selectedChatUser) {
-      return {
-        name: selectedChatUser.name,
-        headline: selectedChatUser.headline || selectedChatUser.email,
-        userId: selectedChatUser.userId || selectedChatUser._id
-      };
-    }
-
-    return null;
-  }, [selectedChatUser, selectedMatch]);
-
-  const chatContacts = useMemo(() => {
-    const contactsMap = new Map();
-
-    matches.forEach((match) => {
-      if (!match.developer?.userId) {
-        return;
-      }
-
-      contactsMap.set(match.developer.userId, {
-        userId: match.developer.userId,
-        name: match.developer.name,
-        email: match.developer.email,
-        headline: match.developer.headline || "",
-        source: "match"
-      });
-    });
-
-    if (selectedChatUser?._id || selectedChatUser?.userId) {
-      const selectedUserId = selectedChatUser.userId || selectedChatUser._id;
-      contactsMap.set(selectedUserId, {
-        userId: selectedUserId,
-        name: selectedChatUser.name,
-        email: selectedChatUser.email,
-        headline: selectedChatUser.headline || selectedChatUser.email || "",
-        source: "search"
-      });
-    }
-
-    Object.entries(messagesByUser).forEach(([userId]) => {
-      if (!contactsMap.has(userId)) {
-        contactsMap.set(userId, {
-          userId,
-          name: userId,
-          email: "",
-          headline: "",
-          source: "history"
-        });
-      }
-    });
-
-    return Array.from(contactsMap.values());
-  }, [matches, messagesByUser, selectedChatUser]);
 
   useEffect(() => {
     if (!token) {
-      disconnectSocket();
       setCurrentUser(null);
       setProfile(null);
       setMatches([]);
@@ -157,10 +73,6 @@ function App() {
 
     localStorage.setItem(tokenStorageKey, token);
     void bootstrapDashboard(token);
-
-    return () => {
-      disconnectSocket();
-    };
   }, [token]);
 
   useEffect(() => {
@@ -168,10 +80,6 @@ function App() {
       setSelectedChatUserId(matches[0].developer.userId);
     }
   }, [matches, selectedChatUserId]);
-
-  useEffect(() => {
-    selectedChatUserIdRef.current = selectedChatUserId;
-  }, [selectedChatUserId]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -255,105 +163,6 @@ function App() {
     void loadPublicProfile();
   }, [routePath]);
 
-  const disconnectSocket = () => {
-    if (socketRef.current) {
-      console.log("[socket] disconnecting");
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-
-    setChatConnected(false);
-    setChatStatus("Disconnected");
-  };
-
-  const connectSocket = (authToken) => {
-    if (!authToken) {
-      return;
-    }
-
-    disconnectSocket();
-    console.log("[socket] connecting", socketUrl);
-    console.log("[socket] token available", Boolean(authToken));
-    setChatStatus("Connecting...");
-
-    const socket = io(socketUrl, {
-      auth: {
-        token: authToken
-      },
-      transports: ["websocket"]
-    });
-
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      console.log("[socket] connected", socket.id);
-    });
-
-    socket.on("chat:ready", ({ userId }) => {
-      console.log("[socket] ready", userId);
-      currentUserIdRef.current = userId;
-      setChatConnected(true);
-      setChatStatus("Connected");
-      setChatError("");
-      setCurrentUser((previousUser) =>
-        previousUser
-          ? { ...previousUser, _id: previousUser._id || userId }
-          : { _id: userId }
-      );
-    });
-
-    socket.on("connect_error", (error) => {
-      console.error("[socket] connect error", error);
-      setChatConnected(false);
-      setChatStatus("Connection failed");
-      setChatError(error.message || "Failed to connect chat.");
-    });
-
-    socket.on("disconnect", (reason) => {
-      console.log("[socket] disconnected", reason);
-      setChatConnected(false);
-      setChatStatus("Disconnected");
-    });
-
-    socket.on("chat:error", ({ message }) => {
-      console.error("[socket] chat error", message);
-      setChatError(message || "Chat error");
-    });
-
-    socket.on("chat:message", (payload) => {
-      console.log("[socket] message received", payload);
-      const currentUserId = currentUserIdRef.current;
-      const partnerUserId =
-        payload.fromUserId === currentUserId ? payload.toUserId : payload.fromUserId;
-
-      setMessagesByUser((previousMessages) => {
-        const existingConversation = previousMessages[partnerUserId] || [];
-
-        return {
-          ...previousMessages,
-          [partnerUserId]: [
-            ...existingConversation,
-            {
-              id: `${payload.sentAt}-${payload.fromUserId}-${existingConversation.length}`,
-              senderId: payload.fromUserId,
-              receiverId: payload.toUserId,
-              text: payload.text,
-              sentAt: payload.sentAt,
-              direction:
-                payload.fromUserId === currentUserId ? "outbound" : "inbound",
-              read:
-                payload.fromUserId === currentUserId ||
-                partnerUserId === selectedChatUserIdRef.current
-            }
-          ]
-        };
-      });
-    });
-
-    socket.on("chat:typing", (payload) => {
-      console.log("[socket] typing", payload);
-    });
-  };
 
   const bootstrapDashboard = async (authToken) => {
     setLoadingDashboard(true);
@@ -364,19 +173,15 @@ function App() {
       const fetchedUser = await getCurrentUser(authToken);
       console.log("[dashboard] current user fetched", fetchedUser);
       setCurrentUser(fetchedUser);
-      currentUserIdRef.current = fetchedUser._id || currentUserIdRef.current;
 
       const fetchedProfile = await getMyProfile(authToken);
       console.log("[dashboard] profile fetched", fetchedProfile);
       setProfile(fetchedProfile);
       setCurrentUser(fetchedProfile.user || fetchedUser || null);
-      currentUserIdRef.current =
-        fetchedProfile.user?._id || currentUserIdRef.current;
 
       const fetchedMatches = await getUserMatches(authToken);
       console.log("[dashboard] matches fetched", fetchedMatches);
       setMatches(fetchedMatches.matches || []);
-      connectSocket(authToken);
     } catch (error) {
       console.error("[dashboard] bootstrap failed", error);
 
@@ -386,7 +191,6 @@ function App() {
         setDashboardError(
           "Your account is authenticated, but you do not have a developer profile yet."
         );
-        connectSocket(authToken);
       } else if (error.status === 401) {
         handleLogout();
         setDashboardError("Session expired. Please log in again.");
@@ -465,18 +269,14 @@ function App() {
   const handleLogout = () => {
     console.log("[auth] logout");
     localStorage.removeItem(tokenStorageKey);
-    disconnectSocket();
-    currentUserIdRef.current = "";
     setToken("");
     setCurrentUser(null);
     setProfile(null);
     setMatches([]);
-    setMessagesByUser({});
     setSelectedChatUserId("");
-    setChatInput("");
+    setSelectedChatUser(null);
     setAuthError("");
     setDashboardError("");
-    setChatError("");
     setActivePage("profile");
   };
 
@@ -516,8 +316,6 @@ function App() {
       const createdProfile = await createProfile(token, payload);
       setProfile(createdProfile);
       setCurrentUser(createdProfile.user || currentUser);
-      currentUserIdRef.current =
-        createdProfile.user?._id || currentUserIdRef.current;
       setProfileDraft(emptyProfileDraft);
 
       const fetchedMatches = await getUserMatches(token);
@@ -530,77 +328,14 @@ function App() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!socketRef.current || !chatConnected) {
-      setChatError("Chat is not connected yet.");
-      return;
-    }
-
-    if (!selectedChatUserId) {
-      setChatError("Choose a match to chat with.");
-      return;
-    }
-
-    if (!chatInput.trim()) {
-      setChatError("Type a message before sending.");
-      return;
-    }
-
-    setSendingMessage(true);
-    setChatError("");
-    const messageText = chatInput.trim();
-
-    console.log("[chat] sending", {
-      targetUserId: selectedChatUserId,
-      text: messageText
-    });
-
-    socketRef.current.emit("chat:message", {
-      targetUserId: selectedChatUserId,
-      text: messageText
-    });
-
-    setChatInput("");
-    setSendingMessage(false);
-  };
-
-  const handleSelectConversation = async (userId, userDetails = null) => {
+  const handleOpenChat = (userId, userDetails = null) => {
     if (!userId) {
       return;
     }
 
-    console.log("[chat] selecting conversation", userId);
     setSelectedChatUserId(userId);
-    if (userDetails) {
-      setSelectedChatUser(userDetails);
-    }
+    setSelectedChatUser(userDetails);
     setActivePage("messages");
-    setLoadingHistory(true);
-
-    try {
-      const response = await getConversationMessages(token, userId);
-      console.log("[chat] history fetched", response);
-      setMessagesByUser((previousMessages) => ({
-        ...previousMessages,
-        [userId]: (response.messages || []).map((message) => ({
-          id: message._id,
-          senderId: String(message.sender),
-          receiverId: String(message.receiver),
-          text: message.text,
-          sentAt: message.createdAt,
-          direction:
-            String(message.sender) === String(currentUserIdRef.current)
-              ? "outbound"
-              : "inbound",
-          read: true
-        }))
-      }));
-    } catch (error) {
-      console.error("[chat] history failed", error);
-      setChatError(error.message || "Failed to load message history.");
-    } finally {
-      setLoadingHistory(false);
-    }
   };
 
   const handleProjectAction = (action) => {
@@ -614,7 +349,7 @@ function App() {
     console.log("[search] selected user", user);
     setSearchQuery("");
     setSearchResults([]);
-    void handleSelectConversation(user._id, {
+    handleOpenChat(user._id, {
       userId: user._id,
       name: user.name,
       email: user.email,
@@ -646,7 +381,7 @@ function App() {
         return (
           <ConnectionsPage
             matches={matches}
-            onOpenChat={(userId) => void handleSelectConversation(userId)}
+            onOpenChat={handleOpenChat}
           />
         );
       case "projects":
@@ -658,24 +393,13 @@ function App() {
         );
       case "messages":
         return (
-          <MessagesPage
-            chatConnected={chatConnected}
-            chatError={chatError}
-            chatInput={chatInput}
-            chatStatus={chatStatus}
-            contacts={chatContacts}
-            currentUserId={currentUser?._id || currentUserIdRef.current}
-            loadingHistory={loadingHistory}
-            messagesByUser={messagesByUser}
-            onChatInputChange={setChatInput}
-            onNewThread={() => handleProjectAction("New thread")}
-            onSelectConversation={(userId) => void handleSelectConversation(userId)}
-            onSendMessage={handleSendMessage}
+          <ChatPage
+            token={token}
+            currentUserId={currentUser?._id || ""}
+            matches={matches}
             selectedChatUserId={selectedChatUserId}
-            selectedConversationUser={selectedConversationUser}
-            selectedMessages={messagesByUser[selectedChatUserId] || []}
-            sendingMessage={sendingMessage}
-            socketUrl={socketUrl}
+            selectedChatUser={selectedChatUser}
+            onNavigate={setActivePage}
           />
         );
       case "profile":

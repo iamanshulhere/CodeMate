@@ -68,8 +68,9 @@ function ConnectionsPage({ matches, onOpenChat }) {
               </div>
 
               <button
-                className="mt-5 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                onClick={() => onOpenChat(match.developer?.userId || "")}
+                className="mt-5 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => match.developer?.userId && onOpenChat(match.developer.userId)}
+                disabled={!match.developer?.userId}
               >
                 Open messages
               </button>
