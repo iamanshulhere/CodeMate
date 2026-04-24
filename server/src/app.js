@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes.js";
 import developerProfileRoutes from "./routes/developerProfileRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
@@ -43,6 +44,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profiles", developerProfileRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/projects", projectRoutes);
 app.use("/api/users", userRoutes);
 
 app.use((error, _req, res, _next) => {

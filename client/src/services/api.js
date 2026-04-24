@@ -120,6 +120,28 @@ export function getConversationMessages(token, userId) {
   });
 }
 
+export function getProjects(token) {
+  return request("/api/projects", {
+    headers: authHeaders(token)
+  });
+}
+
+export function createProject(token, payload) {
+  return request("/api/projects", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload)
+  });
+}
+
+export function joinProject(token, projectId) {
+  return request("/api/projects/join", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ projectId })
+  });
+}
+
 export function searchUsers(token, query) {
   return request(`/api/users/search?q=${encodeURIComponent(query)}`, {
     headers: authHeaders(token)

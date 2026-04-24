@@ -4,7 +4,7 @@ import Navbar from "./components/Navbar";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
-import ProjectsPage from "./pages/ProjectsPage";
+import ProjectPage from "./pages/ProjectPage";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import {
   createProfile,
@@ -55,7 +55,6 @@ function App() {
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [authError, setAuthError] = useState("");
   const [dashboardError, setDashboardError] = useState("");
-  const [projectActionMessage, setProjectActionMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [toastMessage, setToastMessage] = useState("");
@@ -338,13 +337,6 @@ function App() {
     setActivePage("messages");
   };
 
-  const handleProjectAction = (action) => {
-    console.log("[projects] action", action);
-    setProjectActionMessage(
-      `${action} is wired to the UI. Add a project API next to make this persistent.`
-    );
-  };
-
   const handleSearchSelect = (user) => {
     console.log("[search] selected user", user);
     setSearchQuery("");
@@ -386,9 +378,9 @@ function App() {
         );
       case "projects":
         return (
-          <ProjectsPage
-            onAction={handleProjectAction}
-            projectActionMessage={projectActionMessage}
+          <ProjectPage
+            token={token}
+            currentUserId={currentUser?._id || ""}
           />
         );
       case "messages":
