@@ -10,6 +10,6 @@ const router = express.Router();
 
 router.post("/", protect, createProject);
 router.get("/", protect, getProjects);
-router.post("/join", protect, joinProject);
+router.post("/join/:projectId", protect, joinProject);
 
 export default router;

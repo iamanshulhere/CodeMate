@@ -7,6 +7,7 @@ import app from "./app.js";
 import { getAllowedOrigins, isAllowedOrigin } from "./config/origins.js";
 import connectDB from "./config/db.js";
 import { initializeChatSocket } from "./sockets/chatSocket.js";
+import { setSocketServer } from "./sockets/socketManager.js";
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFilePath);
@@ -49,6 +50,7 @@ const startServer = async () => {
       });
     });
 
+    setSocketServer(io);
     initializeChatSocket(io);
 
     server.on("error", (error) => {

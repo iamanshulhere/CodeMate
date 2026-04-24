@@ -135,10 +135,9 @@ export function createProject(token, payload) {
 }
 
 export function joinProject(token, projectId) {
-  return request("/api/projects/join", {
+  return request(`/api/projects/join/${projectId}`, {
     method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify({ projectId })
+    headers: authHeaders(token)
   });
 }
 

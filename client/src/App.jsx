@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AuthScreen from "./components/AuthScreen";
 import Navbar from "./components/Navbar";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
-import ProjectPage from "./pages/ProjectPage";
+import ProjectsPage from "./pages/ProjectsPage";
 import PublicProfilePage from "./pages/PublicProfilePage";
+import { createChatSocket } from "./services/socket";
 import {
   createProfile,
   getCurrentUser,
@@ -60,7 +61,19 @@ function App() {
   const [toastMessage, setToastMessage] = useState("");
   const [publicProfile, setPublicProfile] = useState(null);
   const [publicProfileError, setPublicProfileError] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const socketRef = useRef(null);
+  const currentUserRef = useRef(currentUser);
+  const activePageRef = useRef(activePage);
 
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    activePageRef.current = activePage;
+  }, [activePage]);
 
   useEffect(() => {
     if (!token) {
@@ -133,6 +146,84 @@ function App() {
   }, [searchQuery, token]);
 
   useEffect(() => {
+    if (!token) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      setSocketConnected(false);
+      return;
+    }
+
+    const socket = createChatSocket(token);
+    socketRef.current = socket;
+    setSocketConnected(socket.connected);
+
+    const handleConnect = () => setSocketConnected(true);
+    const handleDisconnect = () => setSocketConnected(false);
+    const handleChatMessage = (payload) => {
+      const currentUser = currentUserRef.current;
+      if (!currentUser || !payload || payload.fromUserId === currentUser._id) {
+        return;
+      }
+
+      if (
+        activePageRef.current === "messages" &&
+        selectedChatUserId === payload.fromUserId
+      ) {
+        return;
+      }
+
+      addNotification({
+        id: `message-${payload.id}-${Date.now()}`,
+        type: "message",
+        title: `New message from ${payload.fromUserName || "a contact"}`,
+        message: payload.text,
+        page: "messages",
+        data: {
+          userId: payload.fromUserId,
+          name: payload.fromUserName
+        },
+        createdAt: new Date().toISOString(),
+        read: false
+      });
+    };
+
+    const handleProjectJoinNotification = (payload) => {
+      if (!payload) {
+        return;
+      }
+
+      addNotification({
+        id: payload.id || `project-join-${Date.now()}`,
+        type: payload.type || "project-join",
+        title: payload.title || "New project activity",
+        message: payload.message || "A collaborator joined your project.",
+        page: payload.page || "projects",
+        data: payload,
+        createdAt: payload.createdAt || new Date().toISOString(),
+        read: false
+      });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("chat:message", handleChatMessage);
+    socket.on("notification:project-join", handleProjectJoinNotification);
+
+    return () => {
+      if (socket) {
+        socket.off("connect", handleConnect);
+        socket.off("disconnect", handleDisconnect);
+        socket.off("chat:message", handleChatMessage);
+        socket.off("notification:project-join", handleProjectJoinNotification);
+        socket.disconnect();
+      }
+      socketRef.current = null;
+    };
+  }, [token, selectedChatUserId]);
+
+  useEffect(() => {
     const profileId = getProfileIdFromPath(routePath);
 
     if (!profileId) {
@@ -181,6 +272,21 @@ function App() {
       const fetchedMatches = await getUserMatches(authToken);
       console.log("[dashboard] matches fetched", fetchedMatches);
       setMatches(fetchedMatches.matches || []);
+
+      if (
+        fetchedMatches.matches?.length > 0 &&
+        activePageRef.current !== "connections"
+      ) {
+        addNotification({
+          type: "match",
+          title: "Match alerts available",
+          message: `${fetchedMatches.matches.length} new developer matches are ready.`,
+          page: "connections",
+          data: { count: fetchedMatches.matches.length },
+          createdAt: new Date().toISOString(),
+          read: false
+        });
+      }
     } catch (error) {
       console.error("[dashboard] bootstrap failed", error);
 
@@ -200,6 +306,63 @@ function App() {
       setLoadingDashboard(false);
     }
   };
+
+  const addNotification = (notification) => {
+    setNotifications((previous) => [
+      {
+        id:
+          notification.id ||
+          `notif-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        ...notification
+      },
+      ...previous
+    ]);
+  };
+
+  const markNotificationRead = (notificationId) => {
+    setNotifications((previous) =>
+      previous.map((notification) =>
+        notification.id === notificationId
+          ? { ...notification, read: true }
+          : notification
+      )
+    );
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications((previous) =>
+      previous.map((notification) => ({ ...notification, read: true }))
+    );
+  };
+
+  const handleNotificationSelect = (notification) => {
+    if (!notification) {
+      return;
+    }
+
+    markNotificationRead(notification.id);
+
+    if (notification.page) {
+      setActivePage(notification.page);
+    }
+
+    if (notification.page === "messages" && notification.data?.userId) {
+      setSelectedChatUserId(notification.data.userId);
+      setSelectedChatUser({
+        userId: notification.data.userId,
+        name: notification.data.name || notification.data.email || "Unknown"
+      });
+    }
+  };
+
+  const handleNotify = (notification) => {
+    addNotification(notification);
+  };
+
+  const notificationCount = notifications.filter((notification) => !notification.read)
+    .length;
 
   const handleAuthFormChange = (event) => {
     const { name, value } = event.target;
@@ -378,9 +541,10 @@ function App() {
         );
       case "projects":
         return (
-          <ProjectPage
+          <ProjectsPage
             token={token}
             currentUserId={currentUser?._id || ""}
+            onNotify={handleNotify}
           />
         );
       case "messages":
@@ -439,6 +603,10 @@ function App() {
       <div className="mx-auto max-w-6xl">
         <Navbar
           activePage={activePage}
+          notificationsCount={notificationCount}
+          notifications={notifications}
+          onSelectNotification={handleNotificationSelect}
+          onMarkAllRead={markAllNotificationsRead}
           onLogout={handleLogout}
           onNavigate={setActivePage}
           onSearchChange={setSearchQuery}

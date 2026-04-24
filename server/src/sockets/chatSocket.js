@@ -153,6 +153,7 @@ export const initializeChatSocket = (io) => {
           id: String(savedMessage._id),
           conversationId,
           fromUserId: currentUserId,
+          fromUserName: socket.user?.name || socket.user?.email || "Contact",
           toUserId: String(targetUserId),
           text: savedMessage.text,
           sentAt: savedMessage.createdAt.toISOString()

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Project from "../models/Project.js";
+import { getSocketServer, getUserRoom } from "../sockets/socketManager.js";
 
 export const createProject = async (req, res) => {
   const { title, description, techStack } = req.body;
@@ -53,7 +54,7 @@ export const getProjects = async (req, res) => {
 };
 
 export const joinProject = async (req, res) => {
-  const { projectId } = req.body;
+  const { projectId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(projectId)) {
     res.status(400).json({ message: "Invalid project id" });
@@ -81,6 +82,24 @@ export const joinProject = async (req, res) => {
     const populatedProject = await Project.findById(project._id)
       .populate("createdBy", "name email")
       .populate("members", "name email");
+
+    const io = getSocketServer();
+    const creatorId = String(populatedProject.createdBy?._id);
+    const currentUserId = String(userId);
+
+    if (io && creatorId && creatorId !== currentUserId) {
+      io.to(getUserRoom(creatorId)).emit("notification:project-join", {
+        id: `project-join-${project._id}-${Date.now()}`,
+        type: "project-join",
+        title: "New project member",
+        message: `${req.user.name || req.user.email || "A collaborator"} joined ${populatedProject.title}`,
+        projectId: project._id,
+        fromUserId: currentUserId,
+        page: "projects",
+        createdAt: new Date().toISOString(),
+        read: false
+      });
+    }
 
     res.status(200).json({ project: populatedProject });
   } catch (error) {
