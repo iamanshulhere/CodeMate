@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Message from "../models/Message.js";
+import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 
 const getUserRoom = (userId) => `user:${userId}`;
@@ -165,6 +166,17 @@ export const initializeChatSocket = (io) => {
           toUserId: String(targetUserId),
           messageId: String(savedMessage._id)
         });
+
+        // Create notification for receiver
+        try {
+          await Notification.create({
+            user: targetUserId,
+            type: "message",
+            content: `New message from ${socket.user?.name || socket.user?.email || "Contact"}`
+          });
+        } catch (notifError) {
+          console.error("[socket] Failed to create message notification:", notifError.message);
+        }
 
         io.to(currentUserRoom).emit("chat:message", payload);
         io.to(getUserRoom(targetUserId)).emit("chat:message", payload);

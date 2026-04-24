@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Project from "../models/Project.js";
+import Notification from "../models/Notification.js";
 import { getSocketServer, getUserRoom } from "../sockets/socketManager.js";
 
 export const createProject = async (req, res) => {
@@ -99,6 +100,17 @@ export const joinProject = async (req, res) => {
         createdAt: new Date().toISOString(),
         read: false
       });
+
+      // Create notification for creator
+      try {
+        await Notification.create({
+          user: creatorId,
+          type: "project",
+          content: `${req.user.name || req.user.email || "A collaborator"} joined your project "${populatedProject.title}"`
+        });
+      } catch (notifError) {
+        console.error("[project] Failed to create join notification:", notifError.message);
+      }
     }
 
     res.status(200).json({ project: populatedProject });

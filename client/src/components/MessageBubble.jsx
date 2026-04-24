@@ -1,6 +1,6 @@
-function MessageBubble({ message, isOwn, showAvatar, avatarLabel }) {
+function MessageBubble({ message, isOwn, showAvatar, avatarLabel, isConsecutive = false, isRead = false }) {
   return (
-    <div className={`flex items-end gap-3 ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div className={`flex items-end gap-3 ${isOwn ? "justify-end" : "justify-start"} ${isConsecutive ? "mt-1" : "mt-3"}`}>
       {!isOwn ? (
         showAvatar ? (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-300 text-sm font-bold text-slate-700">
@@ -19,9 +19,14 @@ function MessageBubble({ message, isOwn, showAvatar, avatarLabel }) {
         }`}
       >
         <p className="whitespace-pre-wrap break-words leading-6">{message.text}</p>
-        <p className={`text-[11px] ${isOwn ? "text-sky-100 text-right" : "text-slate-500 text-left"}`}>
-          {formatTimestamp(message.sentAt)}
-        </p>
+        <div className={`flex items-center justify-end gap-1 text-[11px] ${isOwn ? "text-sky-100" : "text-slate-500"}`}>
+          <span>{formatTimestamp(message.sentAt)}</span>
+          {isOwn && (
+            <span className={`text-xs ${isRead ? "text-green-300" : "text-sky-200"}`}>
+              ✓
+            </span>
+          )}
+        </div>
       </div>
 
       {isOwn ? <div className="w-10" /> : null}

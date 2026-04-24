@@ -7,6 +7,7 @@ function ProjectsPage({ token, currentUserId, onNotify }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(null); // projectId being joined
   const [form, setForm] = useState({ title: "", description: "", techStack: "" });
 
   useEffect(() => {
@@ -79,6 +80,7 @@ function ProjectsPage({ token, currentUserId, onNotify }) {
   };
 
   const handleJoinProject = async (projectId) => {
+    setJoining(projectId);
     setError("");
     setSuccess("");
 
@@ -104,6 +106,8 @@ function ProjectsPage({ token, currentUserId, onNotify }) {
       }
     } catch (joinError) {
       setError(joinError.message || "Failed to join project.");
+    } finally {
+      setJoining(null);
     }
   };
 
@@ -220,22 +224,25 @@ function ProjectsPage({ token, currentUserId, onNotify }) {
             );
 
             return (
-              <article key={project._id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={project._id} className={`rounded-3xl border p-5 shadow-sm ${isMember ? "border-green-300 bg-green-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-slate-950">{project.title}</h3>
+                    <p className="mt-1 text-sm text-slate-500">Created by {project.createdBy?.name || "Unknown"}</p>
                     <p className="mt-2 text-sm text-slate-600">{project.description}</p>
                   </div>
                   <button
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                       isMember
-                        ? "border border-slate-200 bg-slate-100 text-slate-600"
-                        : "bg-amber-600 text-white hover:bg-amber-700"
+                        ? "border border-green-300 bg-green-100 text-green-700 cursor-not-allowed"
+                        : joining === project._id
+                        ? "bg-amber-400 text-white cursor-wait"
+                        : "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-md"
                     }`}
                     onClick={() => handleJoinProject(project._id)}
-                    disabled={isMember}
+                    disabled={isMember || joining === project._id}
                   >
-                    {isMember ? "Joined" : "Join Project"}
+                    {joining === project._id ? "Joining..." : isMember ? "Joined ✓" : "Join Project"}
                   </button>
                 </div>
 

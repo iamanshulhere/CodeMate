@@ -141,6 +141,19 @@ export function joinProject(token, projectId) {
   });
 }
 
+export function getNotifications(token) {
+  return request("/api/notifications", {
+    headers: authHeaders(token)
+  });
+}
+
+export function markNotificationRead(token, notificationId) {
+  return request(`/api/notifications/${notificationId}/read`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
 export function searchUsers(token, query) {
   return request(`/api/users/search?q=${encodeURIComponent(query)}`, {
     headers: authHeaders(token)

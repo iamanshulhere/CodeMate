@@ -379,7 +379,11 @@ function ChatPage({ token, currentUserId, matches = [], selectedChatUserId, sele
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-bold text-slate-950">{contact.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-950">{contact.name}</h3>
+                          <span className="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+                          <span className="text-xs text-green-600">Online</span>
+                        </div>
                         <p className="mt-1 text-xs text-slate-500 line-clamp-2">
                           {preview}
                         </p>
@@ -417,7 +421,12 @@ function ChatPage({ token, currentUserId, matches = [], selectedChatUserId, sele
               </p>
             </div>
             {activeTyping ? (
-              <div className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
+              <div className="flex items-center gap-2 rounded-full bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-700">
+                <div className="flex gap-1">
+                  <div className="h-1 w-1 animate-bounce rounded-full bg-blue-500"></div>
+                  <div className="h-1 w-1 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="h-1 w-1 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: '0.2s' }}></div>
+                </div>
                 Typing...
               </div>
             ) : null}
@@ -434,13 +443,14 @@ function ChatPage({ token, currentUserId, matches = [], selectedChatUserId, sele
               <p className="text-sm text-slate-500">Loading conversation...</p>
             ) : null}
 
-            <div className="max-h-[28rem] overflow-y-auto space-y-3 pr-1">
+            <div className="max-h-[28rem] overflow-y-auto space-y-1 pr-1">
               {selectedMessages.length ? (
                 selectedMessages.map((message, index) => {
                   const previousMessage = selectedMessages[index - 1];
                   const isOwn = String(message.senderId) === String(currentUserId);
                   const showAvatar =
                     !previousMessage || previousMessage.senderId !== message.senderId;
+                  const isConsecutive = previousMessage && previousMessage.senderId === message.senderId;
 
                   return (
                     <MessageBubble
@@ -449,6 +459,8 @@ function ChatPage({ token, currentUserId, matches = [], selectedChatUserId, sele
                       isOwn={isOwn}
                       showAvatar={showAvatar}
                       avatarLabel={selectedContact?.avatar || "U"}
+                      isConsecutive={isConsecutive}
+                      isRead={isOwn} // Basic: assume sent messages are read
                     />
                   );
                 })

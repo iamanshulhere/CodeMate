@@ -13,6 +13,8 @@ import {
   getProfileById,
   getMyProfile,
   getUserMatches,
+  getNotifications,
+  markNotificationRead,
   loginUser,
   searchUsers,
   signupUser
@@ -273,6 +275,10 @@ function App() {
       console.log("[dashboard] matches fetched", fetchedMatches);
       setMatches(fetchedMatches.matches || []);
 
+      const fetchedNotifications = await getNotifications(authToken);
+      console.log("[dashboard] notifications fetched", fetchedNotifications);
+      setNotifications(fetchedNotifications.notifications || []);
+
       if (
         fetchedMatches.matches?.length > 0 &&
         activePageRef.current !== "connections"
@@ -330,39 +336,6 @@ function App() {
       )
     );
   };
-
-  const markAllNotificationsRead = () => {
-    setNotifications((previous) =>
-      previous.map((notification) => ({ ...notification, read: true }))
-    );
-  };
-
-  const handleNotificationSelect = (notification) => {
-    if (!notification) {
-      return;
-    }
-
-    markNotificationRead(notification.id);
-
-    if (notification.page) {
-      setActivePage(notification.page);
-    }
-
-    if (notification.page === "messages" && notification.data?.userId) {
-      setSelectedChatUserId(notification.data.userId);
-      setSelectedChatUser({
-        userId: notification.data.userId,
-        name: notification.data.name || notification.data.email || "Unknown"
-      });
-    }
-  };
-
-  const handleNotify = (notification) => {
-    addNotification(notification);
-  };
-
-  const notificationCount = notifications.filter((notification) => !notification.read)
-    .length;
 
   const handleAuthFormChange = (event) => {
     const { name, value } = event.target;
@@ -440,6 +413,17 @@ function App() {
     setAuthError("");
     setDashboardError("");
     setActivePage("profile");
+  };
+
+  const handleMarkRead = async (notificationId) => {
+    try {
+      await markNotificationRead(token, notificationId);
+      setNotifications(prev =>
+        prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
+      );
+    } catch (error) {
+      console.error("[notification] failed to mark as read", error);
+    }
   };
 
   const handleCreateProfile = async () => {
@@ -603,10 +587,8 @@ function App() {
       <div className="mx-auto max-w-6xl">
         <Navbar
           activePage={activePage}
-          notificationsCount={notificationCount}
           notifications={notifications}
-          onSelectNotification={handleNotificationSelect}
-          onMarkAllRead={markAllNotificationsRead}
+          onMarkRead={handleMarkRead}
           onLogout={handleLogout}
           onNavigate={setActivePage}
           onSearchChange={setSearchQuery}
