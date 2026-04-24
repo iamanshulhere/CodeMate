@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createProject, getProjects, joinProject } from "../services/api";
 
-function ProjectsPage({ token, currentUserId, onNotify }) {
+function ProjectsPage({ token, currentUserId }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -92,18 +92,6 @@ function ProjectsPage({ token, currentUserId, onNotify }) {
         )
       );
       setSuccess("You joined the project.");
-
-      if (typeof onNotify === "function") {
-        onNotify({
-          type: "project-join",
-          title: "Joined project",
-          message: `You joined ${response.project.title}`,
-          page: "projects",
-          data: { projectId: response.project._id },
-          createdAt: new Date().toISOString(),
-          read: false
-        });
-      }
     } catch (joinError) {
       setError(joinError.message || "Failed to join project.");
     } finally {

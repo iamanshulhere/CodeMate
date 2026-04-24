@@ -169,10 +169,17 @@ export const initializeChatSocket = (io) => {
 
         // Create notification for receiver
         try {
-          await Notification.create({
+          const notification = await Notification.create({
             user: targetUserId,
             type: "message",
             content: `New message from ${socket.user?.name || socket.user?.email || "Contact"}`
+          });
+          io.to(getUserRoom(targetUserId)).emit("notification:new", {
+            _id: notification._id,
+            type: notification.type,
+            content: notification.content,
+            isRead: notification.isRead,
+            createdAt: notification.createdAt
           });
         } catch (notifError) {
           console.error("[socket] Failed to create message notification:", notifError.message);

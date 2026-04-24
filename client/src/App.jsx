@@ -163,62 +163,19 @@ function App() {
 
     const handleConnect = () => setSocketConnected(true);
     const handleDisconnect = () => setSocketConnected(false);
-    const handleChatMessage = (payload) => {
-      const currentUser = currentUserRef.current;
-      if (!currentUser || !payload || payload.fromUserId === currentUser._id) {
-        return;
-      }
-
-      if (
-        activePageRef.current === "messages" &&
-        selectedChatUserId === payload.fromUserId
-      ) {
-        return;
-      }
-
-      addNotification({
-        id: `message-${payload.id}-${Date.now()}`,
-        type: "message",
-        title: `New message from ${payload.fromUserName || "a contact"}`,
-        message: payload.text,
-        page: "messages",
-        data: {
-          userId: payload.fromUserId,
-          name: payload.fromUserName
-        },
-        createdAt: new Date().toISOString(),
-        read: false
-      });
-    };
-
-    const handleProjectJoinNotification = (payload) => {
-      if (!payload) {
-        return;
-      }
-
-      addNotification({
-        id: payload.id || `project-join-${Date.now()}`,
-        type: payload.type || "project-join",
-        title: payload.title || "New project activity",
-        message: payload.message || "A collaborator joined your project.",
-        page: payload.page || "projects",
-        data: payload,
-        createdAt: payload.createdAt || new Date().toISOString(),
-        read: false
-      });
+    const handleNewNotification = (newNotif) => {
+      setNotifications(prev => [newNotif, ...prev]);
     };
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
-    socket.on("chat:message", handleChatMessage);
-    socket.on("notification:project-join", handleProjectJoinNotification);
+    socket.on("notification:new", handleNewNotification);
 
     return () => {
       if (socket) {
         socket.off("connect", handleConnect);
         socket.off("disconnect", handleDisconnect);
-        socket.off("chat:message", handleChatMessage);
-        socket.off("notification:project-join", handleProjectJoinNotification);
+        socket.off("notification:new", handleNewNotification);
         socket.disconnect();
       }
       socketRef.current = null;
@@ -278,21 +235,6 @@ function App() {
       const fetchedNotifications = await getNotifications(authToken);
       console.log("[dashboard] notifications fetched", fetchedNotifications);
       setNotifications(fetchedNotifications.notifications || []);
-
-      if (
-        fetchedMatches.matches?.length > 0 &&
-        activePageRef.current !== "connections"
-      ) {
-        addNotification({
-          type: "match",
-          title: "Match alerts available",
-          message: `${fetchedMatches.matches.length} new developer matches are ready.`,
-          page: "connections",
-          data: { count: fetchedMatches.matches.length },
-          createdAt: new Date().toISOString(),
-          read: false
-        });
-      }
     } catch (error) {
       console.error("[dashboard] bootstrap failed", error);
 
@@ -311,30 +253,6 @@ function App() {
     } finally {
       setLoadingDashboard(false);
     }
-  };
-
-  const addNotification = (notification) => {
-    setNotifications((previous) => [
-      {
-        id:
-          notification.id ||
-          `notif-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-        read: false,
-        createdAt: new Date().toISOString(),
-        ...notification
-      },
-      ...previous
-    ]);
-  };
-
-  const markNotificationRead = (notificationId) => {
-    setNotifications((previous) =>
-      previous.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
   };
 
   const handleAuthFormChange = (event) => {
@@ -528,7 +446,6 @@ function App() {
           <ProjectsPage
             token={token}
             currentUserId={currentUser?._id || ""}
-            onNotify={handleNotify}
           />
         );
       case "messages":
