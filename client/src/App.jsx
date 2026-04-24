@@ -13,7 +13,7 @@ import {
   getCurrentUser,
   getProfileById,
   getMyProfile,
-  getProfileMatches,
+  getUserMatches,
   loginUser,
   searchUsers,
   signupUser
@@ -373,7 +373,7 @@ function App() {
       currentUserIdRef.current =
         fetchedProfile.user?._id || currentUserIdRef.current;
 
-      const fetchedMatches = await getProfileMatches(authToken);
+      const fetchedMatches = await getUserMatches(authToken);
       console.log("[dashboard] matches fetched", fetchedMatches);
       setMatches(fetchedMatches.matches || []);
       connectSocket(authToken);
@@ -520,7 +520,7 @@ function App() {
         createdProfile.user?._id || currentUserIdRef.current;
       setProfileDraft(emptyProfileDraft);
 
-      const fetchedMatches = await getProfileMatches(token);
+      const fetchedMatches = await getUserMatches(token);
       setMatches(fetchedMatches.matches || []);
     } catch (error) {
       console.error("[profile] create failed", error);

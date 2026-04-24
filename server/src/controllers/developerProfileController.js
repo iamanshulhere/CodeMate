@@ -1,7 +1,23 @@
 import mongoose from "mongoose";
 import DeveloperProfile from "../models/DeveloperProfile.js";
+import User from "../models/User.js";
 
 const populateUser = "name email role";
+const normalizeSignal = (value) => value?.toString().trim() || "";
+const uniqueSignals = (items = []) =>
+  [...new Set(items.map(normalizeSignal).filter(Boolean))];
+
+const buildUserSignalPayload = (profile) => ({
+  skills: uniqueSignals((profile.skills || []).map((skill) => skill.name)),
+  techStack: uniqueSignals(
+    (profile.techStack || []).flatMap((item) => item.technologies || [])
+  ),
+  interests: uniqueSignals(profile.interests || [])
+});
+
+const syncUserSignals = async (userId, profile) => {
+  await User.findByIdAndUpdate(userId, buildUserSignalPayload(profile));
+};
 
 const assignProfileFields = (profile, payload) => {
   const allowedFields = [
@@ -37,6 +53,7 @@ export const createDeveloperProfile = async (req, res) => {
     assignProfileFields(profile, req.body);
 
     const savedProfile = await profile.save();
+    await syncUserSignals(req.user._id, savedProfile);
     await savedProfile.populate("user", populateUser);
 
     res.status(201).json(savedProfile);
@@ -121,6 +138,7 @@ export const updateMyDeveloperProfile = async (req, res) => {
 
     assignProfileFields(profile, req.body);
     const updatedProfile = await profile.save();
+    await syncUserSignals(req.user._id, updatedProfile);
     await updatedProfile.populate("user", populateUser);
 
     res.status(200).json(updatedProfile);
@@ -142,6 +160,11 @@ export const deleteMyDeveloperProfile = async (req, res) => {
     }
 
     await profile.deleteOne();
+    await User.findByIdAndUpdate(req.user._id, {
+      skills: [],
+      techStack: [],
+      interests: []
+    });
 
     res.status(200).json({ message: "Developer profile deleted successfully" });
   } catch (error) {

@@ -108,8 +108,8 @@ export function createProfile(token, payload) {
   });
 }
 
-export function getProfileMatches(token) {
-  return request("/api/matches", {
+export function getUserMatches(token) {
+  return request("/api/users/match", {
     headers: authHeaders(token)
   });
 }

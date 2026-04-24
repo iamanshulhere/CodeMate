@@ -28,6 +28,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    skills: [
+      {
+        type: String,
+        trim: true
+      }
+    ],
+    techStack: [
+      {
+        type: String,
+        trim: true
+      }
+    ],
     interests: [
       {
         type: String,
@@ -43,6 +55,10 @@ const userSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+userSchema.index({ skills: 1 });
+userSchema.index({ techStack: 1 });
+userSchema.index({ interests: 1 });
 
 userSchema.pre("save", async function hashPassword(next) {
   if (!this.isModified("password")) {

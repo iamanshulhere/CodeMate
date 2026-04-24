@@ -12,6 +12,9 @@ const buildAuthResponse = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  skills: user.skills || [],
+  techStack: user.techStack || [],
+  interests: user.interests || [],
   token: generateToken(user._id)
 });
 
@@ -32,7 +35,7 @@ const getLoginValidationError = ({ email, password }) => {
 };
 
 export const signupUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, skills = [], techStack = [], interests = [] } = req.body;
   const normalizedEmail = normalizeEmail(email);
   const validationError = getSignupValidationError({ name, email, password });
   console.log("[auth] signup request", {
@@ -57,7 +60,10 @@ export const signupUser = async (req, res) => {
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
-      password
+      password,
+      skills,
+      techStack,
+      interests
     });
     console.log("[auth] signup success", normalizedEmail);
     res.status(201).json(buildAuthResponse(user));
@@ -115,6 +121,9 @@ export const getCurrentUser = async (req, res) => {
     _id: req.user._id,
     name: req.user.name,
     email: req.user.email,
-    role: req.user.role
+    role: req.user.role,
+    skills: req.user.skills || [],
+    techStack: req.user.techStack || [],
+    interests: req.user.interests || []
   });
 };
