@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   acceptConnectionRequest,
+  cancelConnectionRequest,
   getConnectionRequests,
   getConnections,
   sendConnectionRequest,
@@ -15,6 +16,7 @@ function ConnectionsPage({ matches, token, onOpenChat, onToast, highlightConnect
   const [error, setError] = useState("");
   const [activeRequestId, setActiveRequestId] = useState("");
   const [sendingRequestId, setSendingRequestId] = useState("");
+  const [cancelRequestId, setCancelRequestId] = useState("");
 
   const loadConnectionData = async () => {
     setLoading(true);
@@ -49,7 +51,7 @@ function ConnectionsPage({ matches, token, onOpenChat, onToast, highlightConnect
 
     try {
       await sendConnectionRequest(token, userId);
-      onToast?.("Connection request sent.");
+      onToast?.("Request sent");
       await loadConnectionData();
     } catch (requestError) {
       setError(requestError.message || "Unable to send connection request.");
@@ -64,7 +66,7 @@ function ConnectionsPage({ matches, token, onOpenChat, onToast, highlightConnect
 
     try {
       await acceptConnectionRequest(token, requestId);
-      onToast?.("Connection accepted.");
+      onToast?.("Connection accepted");
       await loadConnectionData();
     } catch (actionError) {
       setError(actionError.message || "Unable to accept request.");
@@ -79,12 +81,27 @@ function ConnectionsPage({ matches, token, onOpenChat, onToast, highlightConnect
 
     try {
       await rejectConnectionRequest(token, requestId);
-      onToast?.("Connection request rejected.");
+      onToast?.("Request rejected");
       await loadConnectionData();
     } catch (actionError) {
       setError(actionError.message || "Unable to reject request.");
     } finally {
       setActiveRequestId("");
+    }
+  };
+
+  const handleCancelRequest = async (requestId) => {
+    setCancelRequestId(requestId);
+    setError("");
+
+    try {
+      await cancelConnectionRequest(token, requestId);
+      onToast?.("Request cancelled");
+      await loadConnectionData();
+    } catch (actionError) {
+      setError(actionError.message || "Unable to cancel request.");
+    } finally {
+      setCancelRequestId("");
     }
   };
 
@@ -129,55 +146,157 @@ function ConnectionsPage({ matches, token, onOpenChat, onToast, highlightConnect
         </div>
       ) : null}
 
-      {receivedRequests.length ? (
+      {receivedRequests.length || sentRequests.length ? (
         <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-950">Pending requests</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Review connection requests from collaborators and respond quickly.
+                Review incoming and outgoing connection requests in one view.
               </p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-              {receivedRequests.length} pending
+              {receivedRequests.length + sentRequests.length} total
             </span>
           </div>
 
           <div className="mt-5 grid gap-4">
-            {receivedRequests.map((request) => (
+            {receivedRequests.length ? (
+              <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Requests received</h4>
+                    <p className="text-sm text-slate-500">Accept or reject collaborators who want to connect with you.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                    {receivedRequests.length} received
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {receivedRequests.map((request) => (
+                    <article
+                      key={request._id}
+                      className={`rounded-3xl border p-4 ${
+                        request._id === highlightConnectionId ? "border-sky-400 bg-sky-50" : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{request.sender.name}</p>
+                          <p className="text-sm text-slate-500">{request.sender.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={() => handleAcceptRequest(request._id)}
+                            disabled={activeRequestId === request._id}
+                          >
+                            {activeRequestId === request._id ? "Processing..." : "Accept"}
+                          </button>
+                          <button
+                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={() => handleRejectRequest(request._id)}
+                            disabled={activeRequestId === request._id}
+                          >
+                            {activeRequestId === request._id ? "Processing..." : "Reject"}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {sentRequests.length ? (
+              <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Requests sent</h4>
+                    <p className="text-sm text-slate-500">Pending connection requests you have sent.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                    {sentRequests.length} sent
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {sentRequests.map((request) => (
+                    <article key={request._id} className="rounded-3xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{request.receiver.name}</p>
+                          <p className="text-sm text-slate-500">{request.receiver.email}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-700">
+                            Pending
+                          </span>
+                          <button
+                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={() => handleCancelRequest(request._id)}
+                            disabled={cancelRequestId === request._id}
+                          >
+                            {cancelRequestId === request._id ? "Canceling..." : "Cancel"}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-slate-950">Connections</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Your active collaborator network.
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+            {connections.length} connected
+          </span>
+        </div>
+
+        {connections.length ? (
+          <div className="mt-5 grid gap-4">
+            {connections.map((connection) => (
               <article
-                key={request._id}
-                className={`rounded-3xl border p-4 ${
-                  request._id === highlightConnectionId ? "border-sky-400 bg-sky-50" : "border-slate-200 bg-white"
-                }`}
+                key={connection._id}
+                className="rounded-3xl border border-slate-200 bg-white p-4"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{request.sender.name}</p>
-                    <p className="text-sm text-slate-500">{request.sender.email}</p>
+                    <p className="text-sm font-semibold text-slate-900">{connection.userId?.name || connection.name}</p>
+                    <p className="text-sm text-slate-500">{connection.userId?.email || connection.email}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                      Connected
+                    </span>
                     <button
-                      className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-                      onClick={() => handleAcceptRequest(request._id)}
-                      disabled={activeRequestId === request._id}
+                      className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      onClick={() => connection.userId && onOpenChat(connection.userId)}
                     >
-                      {activeRequestId === request._id ? "Processing..." : "Accept"}
-                    </button>
-                    <button
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
-                      onClick={() => handleRejectRequest(request._id)}
-                      disabled={activeRequestId === request._id}
-                    >
-                      {activeRequestId === request._id ? "Processing..." : "Reject"}
+                      Open chat
                     </button>
                   </div>
                 </div>
               </article>
             ))}
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-white p-5 text-sm text-slate-600">
+            No active connections yet. Send a request from the match cards below to build your network.
+          </div>
+        )}
+      </div>
 
       {matches.length ? (
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
