@@ -105,15 +105,20 @@ export const joinProject = async (req, res) => {
       try {
         const notification = await Notification.create({
           user: creatorId,
+          sender: currentUserId,
           type: "project",
-          content: `${req.user.name || req.user.email || "A collaborator"} joined your project "${populatedProject.title}"`
+          content: `${req.user.name || req.user.email || "A collaborator"} joined your project "${populatedProject.title}"`,
+          referenceId: project._id,
+          redirectUrl: "/projects"
         });
         io.to(getUserRoom(creatorId)).emit("notification:new", {
           _id: notification._id,
           type: notification.type,
           content: notification.content,
           isRead: notification.isRead,
-          createdAt: notification.createdAt
+          createdAt: notification.createdAt,
+          referenceId: notification.referenceId,
+          redirectUrl: notification.redirectUrl
         });
       } catch (notifError) {
         console.error("[project] Failed to create join notification:", notifError.message);

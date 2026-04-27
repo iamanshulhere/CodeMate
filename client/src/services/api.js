@@ -141,6 +141,73 @@ export function joinProject(token, projectId) {
   });
 }
 
+export function getConnections(token) {
+  return request("/api/connections", {
+    headers: authHeaders(token)
+  });
+}
+
+export function getConnectionRequests(token) {
+  return request("/api/connections/requests", {
+    headers: authHeaders(token)
+  });
+}
+
+export function sendConnectionRequest(token, userId) {
+  return request(`/api/connections/request/${userId}`, {
+    method: "POST",
+    headers: authHeaders(token)
+  });
+}
+
+export function acceptConnectionRequest(token, requestId) {
+  return request(`/api/connections/${requestId}/accept`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
+export function rejectConnectionRequest(token, requestId) {
+  return request(`/api/connections/${requestId}/reject`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
+export function cancelConnectionRequest(token, requestId) {
+  return request(`/api/connections/${requestId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+}
+
+export function sendProjectInvite(token, projectId, userId) {
+  return request(`/api/projects/invites/invite/${projectId}/${userId}`, {
+    method: "POST",
+    headers: authHeaders(token)
+  });
+}
+
+export function getProjectInvites(token) {
+  return request("/api/projects/invites", {
+    headers: authHeaders(token)
+  });
+}
+
+export function acceptProjectInvite(token, inviteId) {
+  return request(`/api/projects/invites/invite/${inviteId}/accept`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
+export function rejectProjectInvite(token, inviteId) {
+  return request(`/api/projects/invites/invite/${inviteId}/reject`, {
+    method: "PATCH",
+    headers: authHeaders(token)
+  });
+}
+
 export function getNotifications(token) {
   return request("/api/notifications", {
     headers: authHeaders(token)

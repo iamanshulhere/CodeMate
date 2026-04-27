@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { X, MessageCircle, Users, Heart } from "lucide-react";
+import { X, MessageCircle, Users, Heart, Bell } from "lucide-react";
 
-const NotificationDropdown = ({ notifications, onMarkRead, onClose }) => {
+const NotificationDropdown = ({ notifications, onMarkRead, onSelectNotification, onClose }) => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +20,10 @@ const NotificationDropdown = ({ notifications, onMarkRead, onClose }) => {
       case "message":
         return <MessageCircle size={16} className="text-blue-500" />;
       case "project":
+      case "project_invite":
         return <Users size={16} className="text-green-500" />;
+      case "connection":
+        return <Users size={16} className="text-sky-500" />;
       case "match":
         return <Heart size={16} className="text-red-500" />;
       default:
@@ -69,7 +72,14 @@ const NotificationDropdown = ({ notifications, onMarkRead, onClose }) => {
               className={`p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${
                 !notification.isRead ? "bg-blue-50" : ""
               }`}
-              onClick={() => onMarkRead(notification._id)}
+              onClick={() => {
+                if (typeof onSelectNotification === "function") {
+                  onSelectNotification(notification);
+                } else {
+                  onMarkRead(notification._id);
+                }
+                onClose();
+              }}
             >
               <div className="flex items-start gap-3">
                 {getIcon(notification.type)}

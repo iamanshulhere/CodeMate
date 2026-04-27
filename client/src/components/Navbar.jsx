@@ -12,6 +12,7 @@ function Navbar({
   activePage,
   notifications,
   onMarkRead,
+  onSelectNotification,
   onLogout,
   onNavigate,
   onSearchChange,
@@ -82,7 +83,11 @@ function Navbar({
 
           <div className="flex items-center justify-between gap-3">
             <span className="hidden text-sm text-slate-500 md:inline">MERN workspace</span>
-            <NotificationBell notifications={notifications} onMarkRead={onMarkRead} />
+            <NotificationBell
+              notifications={notifications}
+              onMarkRead={onMarkRead}
+              onSelectNotification={onSelectNotification}
+            />
             <button
               className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               onClick={onLogout}

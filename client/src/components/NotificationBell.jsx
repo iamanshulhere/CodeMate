@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
 import NotificationDropdown from "./NotificationDropdown";
 
-const NotificationBell = ({ notifications, onMarkRead }) => {
+const NotificationBell = ({ notifications, onMarkRead, onSelectNotification }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -32,6 +32,7 @@ const NotificationBell = ({ notifications, onMarkRead }) => {
         <NotificationDropdown
           notifications={notifications}
           onMarkRead={handleMarkRead}
+          onSelectNotification={onSelectNotification}
           onClose={() => setShowDropdown(false)}
         />
       )}

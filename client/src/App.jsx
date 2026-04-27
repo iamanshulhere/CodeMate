@@ -61,6 +61,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [toastMessage, setToastMessage] = useState("");
+  const [highlightedConnectionId, setHighlightedConnectionId] = useState("");
+  const [highlightedProjectInviteId, setHighlightedProjectInviteId] = useState("");
   const [publicProfile, setPublicProfile] = useState(null);
   const [publicProfileError, setPublicProfileError] = useState("");
   const [notifications, setNotifications] = useState([]);
@@ -344,6 +346,43 @@ function App() {
     }
   };
 
+  const handleNotificationSelect = (notification) => {
+    if (!notification) {
+      return;
+    }
+
+    void handleMarkRead(notification._id);
+
+    if (notification.type === "message" && notification.referenceId) {
+      setSelectedChatUserId(notification.referenceId);
+      setSelectedChatUser(null);
+      setActivePage("messages");
+      return;
+    }
+
+    if (notification.type === "connection") {
+      setHighlightedConnectionId(notification.referenceId || "");
+      setActivePage("connections");
+      return;
+    }
+
+    if (notification.type === "project_invite" || notification.redirectUrl?.includes("/projects")) {
+      setHighlightedProjectInviteId(notification.referenceId || "");
+      setActivePage("projects");
+      return;
+    }
+
+    if (notification.redirectUrl?.includes("/connections")) {
+      setActivePage("connections");
+      return;
+    }
+
+    if (notification.redirectUrl?.includes("/messages")) {
+      setActivePage("messages");
+      return;
+    }
+  };
+
   const handleCreateProfile = async () => {
     if (!token) {
       setDashboardError("Log in before creating a profile.");
@@ -438,7 +477,10 @@ function App() {
         return (
           <ConnectionsPage
             matches={matches}
+            token={token}
             onOpenChat={handleOpenChat}
+            onToast={setToastMessage}
+            highlightConnectionId={highlightedConnectionId}
           />
         );
       case "projects":
@@ -446,6 +488,8 @@ function App() {
           <ProjectsPage
             token={token}
             currentUserId={currentUser?._id || ""}
+            onToast={setToastMessage}
+            highlightInviteId={highlightedProjectInviteId}
           />
         );
       case "messages":
@@ -506,6 +550,7 @@ function App() {
           activePage={activePage}
           notifications={notifications}
           onMarkRead={handleMarkRead}
+          onSelectNotification={handleNotificationSelect}
           onLogout={handleLogout}
           onNavigate={setActivePage}
           onSearchChange={setSearchQuery}

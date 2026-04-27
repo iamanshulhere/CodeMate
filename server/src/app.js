@@ -7,6 +7,8 @@ import matchRoutes from "./routes/matchRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
+import connectionRoutes from "./routes/connectionRoutes.js";
+import projectInviteRoutes from "./routes/projectInviteRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
@@ -46,7 +48,9 @@ app.use("/api/profiles", developerProfileRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/connections", connectionRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/projects/invites", projectInviteRoutes);
 app.use("/api/users", userRoutes);
 
 app.use((error, _req, res, _next) => {

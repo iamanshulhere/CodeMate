@@ -9,12 +9,18 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["message", "project", "match"],
+      enum: ["message", "project", "match", "connection", "project_invite"],
       required: true
     },
     content: {
       type: String,
       required: true
+    },
+    referenceId: {
+      type: mongoose.Schema.Types.ObjectId
+    },
+    redirectUrl: {
+      type: String
     },
     isRead: {
       type: Boolean,
