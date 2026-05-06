@@ -109,7 +109,7 @@ export function createProfile(token, payload) {
 }
 
 export function getUserMatches(token) {
-  return request("/api/users/match", {
+  return request("/api/matches", {
     headers: authHeaders(token)
   });
 }

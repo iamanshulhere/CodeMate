@@ -1,12 +1,351 @@
-function ProfilePage({
-  currentUser,
-  onCreateProfile,
-  onProfileDraftChange,
-  onShareProfile,
-  profile,
-  profileDraft,
-  submittingProfile
+import React, { useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import { createProfile, getUserMatches } from "../services/api";
+
+const emptyProfileDraft = {
+  headline: "",
+  bio: "",
+  location: "",
+  totalExperienceYears: 0,
+  interests: "",
+  skills: "",
+  techStack: ""
+};
+
+function splitCommaValues(value) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getInitials(value) {
+  return value
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function ProfileField({
+  label,
+  name,
+  onChange,
+  placeholder,
+  type = "text",
+  value
 }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700">{label}</span>
+      <input
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300"
+        name={name}
+        onChange={onChange}
+        placeholder={placeholder}
+        type={type}
+        value={value}
+      />
+    </label>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-white/10 px-3 py-3">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({ label }) {
+  return (
+    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+      {label}
+    </span>
+  );
+}
+
+export default function ProfilePageWrapper() {
+  const context = useOutletContext();
+  const {
+    token,
+    currentUser,
+    profile,
+    setProfile,
+    setMatches,
+    setToastMessage
+  } = context;
+
+  const [profileDraft, setProfileDraft] = useState(emptyProfileDraft);
+  const [submittingProfile, setSubmittingProfile] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleProfileDraftChange = (event) => {
+    const { name, value } = event.target;
+    setProfileDraft((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleCreateProfile = async () => {
+    if (!token) {
+      setError("Log in before creating a profile.");
+      return;
+    }
+
+    setSubmittingProfile(true);
+    setError("");
+
+    try {
+      const payload = {
+        headline: profileDraft.headline,
+        bio: profileDraft.bio,
+        location: profileDraft.location,
+        totalExperienceYears: Number(profileDraft.totalExperienceYears) || 0,
+        interests: splitCommaValues(profileDraft.interests),
+        skills: splitCommaValues(profileDraft.skills).map((skill) => ({
+          name: skill,
+          level: "intermediate",
+          yearsOfExperience: Math.max(
+            Number(profileDraft.totalExperienceYears) || 0,
+            0
+          )
+        })),
+        techStack: [
+          {
+            category: "Core",
+            technologies: splitCommaValues(profileDraft.techStack)
+          }
+        ]
+      };
+
+      console.log("[profile] creating", payload);
+      const createdProfile = await createProfile(token, payload);
+      setProfile(createdProfile);
+      setProfileDraft(emptyProfileDraft);
+
+      const fetchedMatches = await getUserMatches(token);
+      setMatches(fetchedMatches.matches || []);
+    } catch (err) {
+      console.error("[profile] create failed", err);
+      setError(err.message || "Failed to create profile.");
+    } finally {
+      setSubmittingProfile(false);
+    }
+  };
+
+  const handleShareProfile = async () => {
+    if (!profile?._id) {
+      setError("Create a profile before sharing it.");
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/profile/${profile._id}`;
+    console.log("[profile] share url", shareUrl);
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      if (setToastMessage) {
+        setToastMessage("Profile link copied!");
+      }
+    } catch (err) {
+      console.error("[profile] share failed", err);
+      setError("Failed to copy profile link.");
+    }
+  };
+
+  return (
+    <section className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="rounded-3xl bg-slate-950 p-6 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Profile</p>
+              <h2 className="mt-3 text-2xl font-bold">
+                {profile?.user?.name || currentUser?.name || "Authenticated User"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-300">
+                {currentUser?.email || "Email unavailable"}
+              </p>
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-lg font-bold text-slate-950">
+              {getInitials(profile?.user?.name || currentUser?.name || "CM")}
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3 text-sm">
+            <InfoRow label="Headline" value={profile?.headline || "Not set"} />
+            <InfoRow label="Location" value={profile?.location || "Not set"} />
+            <InfoRow
+              label="Experience"
+              value={`${profile?.totalExperienceYears ?? 0}+ years`}
+            />
+            <InfoRow
+              label="Role"
+              value={profile?.user?.role || currentUser?.role || "developer"}
+            />
+          </div>
+        </div>
+
+        {profile ? (
+          <div className="space-y-6">
+            <section>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-bold text-slate-950">About</h3>
+                <button
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  onClick={handleShareProfile}
+                >
+                  Share Profile
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                {profile.bio || "No bio added yet."}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-bold text-slate-950">Skills</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(profile.skills || []).length ? (
+                  profile.skills.map((skill) => (
+                    <span
+                      key={`${skill.name}-${skill.level}`}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
+                    >
+                      {skill.name} · {skill.level}
+                    </span>
+                  ))
+                ) : (
+                  <EmptyState label="No skills added yet." />
+                )}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-bold text-slate-950">Interests</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(profile.interests || []).length ? (
+                  profile.interests.map((interest) => (
+                    <span
+                      key={interest}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
+                    >
+                      {interest}
+                    </span>
+                  ))
+                ) : (
+                  <EmptyState label="No interests configured." />
+                )}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-bold text-slate-950">Tech Stack</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(profile.techStack || []).flatMap((group) => group.technologies || []).length ? (
+                  profile.techStack
+                    .flatMap((group) => group.technologies || [])
+                    .map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700"
+                      >
+                        {item}
+                      </span>
+                    ))
+                ) : (
+                  <EmptyState label="No tech stack listed." />
+                )}
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6">
+            <h3 className="text-xl font-bold text-slate-950">Create your profile</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Your profile powers matches and helps collaborators understand what you build.
+            </p>
+
+            {error && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <ProfileField
+                label="Headline"
+                name="headline"
+                onChange={handleProfileDraftChange}
+                placeholder="Full-stack developer"
+                value={profileDraft.headline}
+              />
+              <ProfileField
+                label="Location"
+                name="location"
+                onChange={handleProfileDraftChange}
+                placeholder="City or country"
+                value={profileDraft.location}
+              />
+              <ProfileField
+                label="Experience (years)"
+                name="totalExperienceYears"
+                onChange={handleProfileDraftChange}
+                placeholder="3"
+                type="number"
+                value={profileDraft.totalExperienceYears}
+              />
+              <ProfileField
+                label="Interests"
+                name="interests"
+                onChange={handleProfileDraftChange}
+                placeholder="Realtime systems, open source"
+                value={profileDraft.interests}
+              />
+              <ProfileField
+                label="Skills"
+                name="skills"
+                onChange={handleProfileDraftChange}
+                placeholder="React, Node.js, MongoDB"
+                value={profileDraft.skills}
+              />
+              <ProfileField
+                label="Tech stack"
+                name="techStack"
+                onChange={handleProfileDraftChange}
+                placeholder="React, Socket.IO, Express"
+                value={profileDraft.techStack}
+              />
+            </div>
+
+            <label className="mt-4 block">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">Bio</span>
+              <textarea
+                className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300"
+                name="bio"
+                onChange={handleProfileDraftChange}
+                placeholder="What kind of projects do you enjoy building?"
+                rows={4}
+                value={profileDraft.bio}
+              />
+            </label>
+
+            <button
+              className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submittingProfile}
+              onClick={handleCreateProfile}
+              type="button"
+            >
+              {submittingProfile ? "Creating profile..." : "Create Profile"}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
   return (
     <section className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">

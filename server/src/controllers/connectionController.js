@@ -218,7 +218,7 @@ export const getConnectionRequests = async (req, res) => {
       status: "pending"
     }).populate("receiver", "name email");
 
-    res.json({ received, sent });
+    res.json({ receivedRequests: received, sentRequests: sent });
 
   } catch (error) {
     res.status(500).json({ message: error.message });

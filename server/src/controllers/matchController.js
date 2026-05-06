@@ -32,6 +32,7 @@ export const getTopMatches = async (req, res) => {
 
         return {
           ...match,
+          matchScore: match.commonSkills.length + match.commonTechStack.length + match.commonInterests.length,
           developer: matchedProfile
             ? {
                 profileId: matchedProfile._id,

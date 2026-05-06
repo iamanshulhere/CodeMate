@@ -1,3 +1,10 @@
+/**
+ * ML-based user matching service
+ * Uses cosine similarity on user signal vectors (skills, techStack, interests)
+ */
+
+import { calculateMLBasedMatch } from "./mlRecommendationService.js";
+
 const normalizeText = (value) => value?.toString().trim().toLowerCase() || "";
 
 const uniqueNormalizedList = (items = []) =>
@@ -37,33 +44,37 @@ export const buildUserMatchQuery = (user) => {
 };
 
 export const calculateUserMatch = (currentUser, candidateUser) => {
+  // Build profile-like objects for ML calculation
+  const currentProfile = {
+    _id: currentUser._id,
+    skills: (currentUser.skills || []).map((s) => ({ name: s })),
+    techStack: [{ technologies: currentUser.techStack || [] }],
+    interests: currentUser.interests || []
+  };
+
+  const candidateProfile = {
+    _id: candidateUser._id,
+    skills: (candidateUser.skills || []).map((s) => ({ name: s })),
+    techStack: [{ technologies: candidateUser.techStack || [] }],
+    interests: candidateUser.interests || []
+  };
+
+  // Use ML-based matching
+  const mlMatch = calculateMLBasedMatch(currentProfile, candidateProfile);
+
   const currentSignals = extractUserSignals(currentUser);
   const candidateSignals = extractUserSignals(candidateUser);
 
   const commonSkills = getSharedItems(currentSignals.skills, candidateSignals.skills);
-  const commonTechStack = getSharedItems(
-    currentSignals.techStack,
-    candidateSignals.techStack
-  );
-  const commonInterests = getSharedItems(
-    currentSignals.interests,
-    candidateSignals.interests
-  );
+  const commonTechStack = getSharedItems(currentSignals.techStack, candidateSignals.techStack);
+  const commonInterests = getSharedItems(currentSignals.interests, candidateSignals.interests);
 
-  const matchScore =
-    commonSkills.length + commonTechStack.length + commonInterests.length;
-  const compatibilityDenominator =
-    getUnionSize(currentSignals.skills, candidateSignals.skills) +
-    getUnionSize(currentSignals.techStack, candidateSignals.techStack) +
-    getUnionSize(currentSignals.interests, candidateSignals.interests);
-  const compatibilityScore = compatibilityDenominator
-    ? Number((matchScore / compatibilityDenominator).toFixed(3))
-    : 0;
+  const matchScore = commonSkills.length + commonTechStack.length + commonInterests.length;
 
   return {
     userId: String(candidateUser._id),
     matchScore,
-    score: compatibilityScore,
+    score: mlMatch.score,
     breakdown: {
       commonSkills: commonSkills.length,
       commonTechStack: commonTechStack.length,
@@ -90,14 +101,14 @@ export const matchUsers = (currentUser, candidateUsers = [], limit = 10) =>
   candidateUsers
     .filter((candidateUser) => String(candidateUser._id) !== String(currentUser._id))
     .map((candidateUser) => calculateUserMatch(currentUser, candidateUser))
-    .filter((match) => match.matchScore > 0)
+    .filter((match) => match.score > 0.05) // ML-based minimum threshold
     .sort((leftMatch, rightMatch) => {
-      if (rightMatch.matchScore !== leftMatch.matchScore) {
-        return rightMatch.matchScore - leftMatch.matchScore;
-      }
-
       if (rightMatch.score !== leftMatch.score) {
         return rightMatch.score - leftMatch.score;
+      }
+
+      if (rightMatch.matchScore !== leftMatch.matchScore) {
+        return rightMatch.matchScore - leftMatch.matchScore;
       }
 
       return (leftMatch.developer.name || "").localeCompare(
